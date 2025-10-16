@@ -7,7 +7,7 @@ import IntroductionModal from './IntroductionModal';
 import QuestionModal from './QuestionModal';
 import CompletionModal from './CompletionModal';
 
-const P5Canvas = dynamic(() => import('./P5Canvas'), {
+const ThreeCanvas = dynamic(() => import('./ThreeCanvas'), {
   ssr: false,
   loading: () => <div className="text-white">Cargando visualizacion...</div>
 });
@@ -26,14 +26,25 @@ export default function NetworkCanvas() {
 
   const fetchNetwork = useCallback(async () => {
     try {
+      console.log('[NETWORK-CANVAS] Fetching network state...');
       const response = await fetch('/api/network');
       const data = await response.json();
 
       if (data.success) {
+        console.log('[NETWORK-CANVAS] Network state received:', data.data.neurons.map((n: Neuron) => ({
+          id: n.id,
+          status: n.status,
+          progress: n.progress
+        })));
         setNeurons(data.data.neurons);
         if (selectedNeuron) {
           const updated = data.data.neurons.find((n: Neuron) => n.id === selectedNeuron.id);
           if (updated) {
+            console.log('[NETWORK-CANVAS] Selected neuron updated:', {
+              id: updated.id,
+              status: updated.status,
+              progress: updated.progress
+            });
             setSelectedNeuron(updated);
           }
         }
@@ -83,6 +94,11 @@ export default function NetworkCanvas() {
   const handleAnswer = useCallback(async (answerIndex: number) => {
     if (!selectedNeuron || isAnswering) return;
 
+    console.log('[NETWORK-CANVAS] Handling answer:', {
+      neuronId: selectedNeuron.id,
+      answerIndex
+    });
+
     setIsAnswering(true);
     setAnswerFeedback(null);
 
@@ -99,19 +115,24 @@ export default function NetworkCanvas() {
       });
 
       const data = await response.json();
+      console.log('[NETWORK-CANVAS] Answer response:', data);
 
       if (data.success) {
         setAnswerFeedback(data.isCorrect);
 
         if (data.isCorrect) {
+          console.log('[NETWORK-CANVAS] Correct answer! Updating network...');
           await new Promise(resolve => setTimeout(resolve, 1000));
           await fetchNetwork();
 
           if (data.isCompleted) {
+            console.log('[NETWORK-CANVAS] Neuron completed! Unlocked:', data.unlockedNeurons);
             setUnlockedNeurons(data.unlockedNeurons || []);
             setShowQuestionPanel(false);
             setShowCompletionModal(true);
           }
+        } else {
+          console.log('[NETWORK-CANVAS] Wrong answer');
         }
       } else {
         console.error('Failed to submit answer:', data.error);
@@ -164,7 +185,7 @@ export default function NetworkCanvas() {
         <>
           <div className="w-1/2 flex items-center justify-center p-8">
             {neurons.length > 0 && (
-              <P5Canvas neurons={neurons} onNeuronClick={handleNeuronClick} />
+              <ThreeCanvas neurons={neurons} onNeuronClick={handleNeuronClick} />
             )}
           </div>
 
@@ -188,7 +209,7 @@ export default function NetworkCanvas() {
           </p>
 
           {neurons.length > 0 && (
-            <P5Canvas neurons={neurons} onNeuronClick={handleNeuronClick} />
+            <ThreeCanvas neurons={neurons} onNeuronClick={handleNeuronClick} />
           )}
         </div>
       )}
