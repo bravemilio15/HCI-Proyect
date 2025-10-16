@@ -3,10 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Neuron } from '@/domain/neuron.types';
-import { createSketch, SketchProps } from '@/shared/utils/p5-sketch';
 
-const Sketch = dynamic(() => import('react-p5').then((mod) => mod.default), {
+const P5Canvas = dynamic(() => import('./P5Canvas'), {
   ssr: false,
+  loading: () => <div className="text-white">Cargando visualización...</div>
 });
 
 export default function NetworkCanvas() {
@@ -95,21 +95,15 @@ export default function NetworkCanvas() {
     );
   }
 
-  const sketchProps: SketchProps = {
-    neurons,
-    onNeuronClick: handleNeuronClick,
-  };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black p-4">
       <h1 className="text-white text-3xl mb-4">Red Neuronal de Aprendizaje</h1>
       <p className="text-gray-400 mb-6">Haz clic en las neuronas disponibles para aprender</p>
-      <div className="border-2 border-gray-700 rounded-lg overflow-hidden">
-        <Sketch setup={(p5Instance, parentRef) => {
-          const sketch = createSketch(sketchProps);
-          sketch(p5Instance);
-        }} />
-      </div>
+
+      {neurons.length > 0 && (
+        <P5Canvas neurons={neurons} onNeuronClick={handleNeuronClick} />
+      )}
+
       <div className="mt-6 text-white">
         <h2 className="text-xl mb-2">Leyenda:</h2>
         <div className="flex gap-6">
