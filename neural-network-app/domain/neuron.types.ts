@@ -5,6 +5,14 @@ export interface Position {
   y: number;
 }
 
+export interface Question {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
 export interface Neuron {
   id: string;
   label: string;
@@ -12,6 +20,8 @@ export interface Neuron {
   progress: number;
   status: NeuronStatus;
   unlocks: string[];
+  questions: Question[];
+  currentQuestionIndex: number;
 }
 
 export interface NetworkState {
@@ -20,6 +30,7 @@ export interface NetworkState {
 
 export interface UpdateNeuronRequest {
   id: string;
+  answerIndex?: number;
 }
 
 export interface UpdateNeuronResponse {
@@ -27,4 +38,6 @@ export interface UpdateNeuronResponse {
   neuron?: Neuron;
   unlockedNeurons?: string[];
   message?: string;
+  isCorrect?: boolean;
+  isCompleted?: boolean;
 }

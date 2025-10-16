@@ -3,16 +3,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Neuron } from '@/domain/neuron.types';
+import IntroductionModal from './IntroductionModal';
+import QuestionModal from './QuestionModal';
+import CompletionModal from './CompletionModal';
 
 const P5Canvas = dynamic(() => import('./P5Canvas'), {
   ssr: false,
-  loading: () => <div className="text-white">Cargando visualización...</div>
+  loading: () => <div className="text-white">Cargando visualizacion...</div>
 });
 
 export default function NetworkCanvas() {
   const [neurons, setNeurons] = useState<Neuron[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedNeuron, setSelectedNeuron] = useState<Neuron | null>(null);
+  const [showIntroModal, setShowIntroModal] = useState(false);
+  const [showQuestionPanel, setShowQuestionPanel] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [isAnswering, setIsAnswering] = useState(false);
+  const [answerFeedback, setAnswerFeedback] = useState<boolean | null>(null);
+  const [unlockedNeurons, setUnlockedNeurons] = useState<string[]>([]);
 
   const fetchNetwork = useCallback(async () => {
     try {
@@ -21,6 +31,12 @@ export default function NetworkCanvas() {
 
       if (data.success) {
         setNeurons(data.data.neurons);
+        if (selectedNeuron) {
+          const updated = data.data.neurons.find((n: Neuron) => n.id === selectedNeuron.id);
+          if (updated) {
+            setSelectedNeuron(updated);
+          }
+        }
         setError(null);
       } else {
         setError('Failed to load network');
@@ -31,32 +47,44 @@ export default function NetworkCanvas() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedNeuron]);
 
   useEffect(() => {
     fetchNetwork();
-  }, [fetchNetwork]);
+  }, []);
 
-  const handleNeuronClick = useCallback(async (neuronId: string) => {
+  const handleNeuronClick = useCallback((neuronId: string) => {
     const targetNeuron = neurons.find(n => n.id === neuronId);
     if (!targetNeuron || (targetNeuron.status !== 'available' && targetNeuron.status !== 'in_progress')) {
       return;
     }
 
-    setNeurons(prevNeurons => {
-      const updatedNeurons = prevNeurons.map(n => {
-        if (n.id === neuronId) {
-          const newProgress = Math.min(n.progress + 25, 100);
-          return {
-            ...n,
-            progress: newProgress,
-            status: newProgress >= 100 ? 'dominated' as const : 'in_progress' as const
-          };
-        }
-        return n;
-      });
-      return updatedNeurons;
-    });
+    if (targetNeuron.questions.length === 0) {
+      console.warn('No questions available for this neuron');
+      return;
+    }
+
+    setSelectedNeuron(targetNeuron);
+
+    if (targetNeuron.progress === 0) {
+      setShowIntroModal(true);
+    } else {
+      setShowQuestionPanel(true);
+    }
+
+    setAnswerFeedback(null);
+  }, [neurons]);
+
+  const handleStartQuestions = useCallback(() => {
+    setShowIntroModal(false);
+    setShowQuestionPanel(true);
+  }, []);
+
+  const handleAnswer = useCallback(async (answerIndex: number) => {
+    if (!selectedNeuron || isAnswering) return;
+
+    setIsAnswering(true);
+    setAnswerFeedback(null);
 
     try {
       const response = await fetch('/api/network', {
@@ -64,20 +92,55 @@ export default function NetworkCanvas() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id: neuronId }),
+        body: JSON.stringify({
+          id: selectedNeuron.id,
+          answerIndex
+        }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        await fetchNetwork();
+        setAnswerFeedback(data.isCorrect);
+
+        if (data.isCorrect) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await fetchNetwork();
+
+          if (data.isCompleted) {
+            setUnlockedNeurons(data.unlockedNeurons || []);
+            setShowQuestionPanel(false);
+            setShowCompletionModal(true);
+          }
+        }
       } else {
-        console.error('Failed to update neuron:', data.error);
+        console.error('Failed to submit answer:', data.error);
+        setAnswerFeedback(false);
       }
     } catch (err) {
-      console.error('Error updating neuron:', err);
+      console.error('Error submitting answer:', err);
+      setAnswerFeedback(false);
+    } finally {
+      setIsAnswering(false);
     }
-  }, [neurons, fetchNetwork]);
+  }, [selectedNeuron, isAnswering, fetchNetwork]);
+
+  const handleCloseIntroModal = useCallback(() => {
+    setShowIntroModal(false);
+    setSelectedNeuron(null);
+  }, []);
+
+  const handleCloseQuestionPanel = useCallback(() => {
+    setShowQuestionPanel(false);
+    setSelectedNeuron(null);
+    setAnswerFeedback(null);
+  }, []);
+
+  const handleCloseCompletionModal = useCallback(() => {
+    setShowCompletionModal(false);
+    setSelectedNeuron(null);
+    setUnlockedNeurons([]);
+  }, []);
 
   if (loading) {
     return (
@@ -96,35 +159,55 @@ export default function NetworkCanvas() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black p-4">
-      <h1 className="text-white text-3xl mb-4">Red Neuronal de Aprendizaje</h1>
-      <p className="text-gray-400 mb-6">Haz clic en las neuronas disponibles para aprender</p>
+    <div className="flex h-screen bg-black">
+      {showQuestionPanel ? (
+        <>
+          <div className="w-1/2 flex items-center justify-center p-8">
+            {neurons.length > 0 && (
+              <P5Canvas neurons={neurons} onNeuronClick={handleNeuronClick} />
+            )}
+          </div>
 
-      {neurons.length > 0 && (
-        <P5Canvas neurons={neurons} onNeuronClick={handleNeuronClick} />
+          <div className="w-1/2 flex items-center justify-center">
+            {selectedNeuron && (
+              <QuestionModal
+                neuron={selectedNeuron}
+                onAnswer={handleAnswer}
+                onClose={handleCloseQuestionPanel}
+                isCorrect={answerFeedback}
+                isAnswering={isAnswering}
+              />
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="w-full flex flex-col items-center justify-center">
+          <h1 className="text-white text-5xl font-bold mb-4">Red Neuronal de Aprendizaje</h1>
+          <p className="text-gray-400 mb-12 text-xl">
+            Haz clic en la neurona para comenzar a aprender
+          </p>
+
+          {neurons.length > 0 && (
+            <P5Canvas neurons={neurons} onNeuronClick={handleNeuronClick} />
+          )}
+        </div>
       )}
 
-      <div className="mt-6 text-white">
-        <h2 className="text-xl mb-2">Leyenda:</h2>
-        <div className="flex gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-700 rounded-full"></div>
-            <span>Bloqueada</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-700 rounded-full"></div>
-            <span>Disponible</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-700 rounded-full"></div>
-            <span>En Progreso</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-700 rounded-full"></div>
-            <span>Dominada</span>
-          </div>
-        </div>
-      </div>
+      {showIntroModal && selectedNeuron && (
+        <IntroductionModal
+          neuron={selectedNeuron}
+          onStart={handleStartQuestions}
+          onClose={handleCloseIntroModal}
+        />
+      )}
+
+      {showCompletionModal && selectedNeuron && (
+        <CompletionModal
+          neuron={selectedNeuron}
+          unlockedNeurons={unlockedNeurons}
+          onClose={handleCloseCompletionModal}
+        />
+      )}
     </div>
   );
 }

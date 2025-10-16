@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNetworkState, updateNeuronProgress } from '@/data/mock-data';
+import { getNetworkState, answerQuestion } from '@/data/mock-data';
 import { UpdateNeuronRequest, UpdateNeuronResponse } from '@/domain/neuron.types';
 
 export async function GET() {
@@ -38,13 +38,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { updatedNeuron, unlockedNeurons } = updateNeuronProgress(body.id);
+    if (body.answerIndex === undefined || typeof body.answerIndex !== 'number') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid request: answerIndex is required'
+        },
+        { status: 400 }
+      );
+    }
+
+    const { updatedNeuron, unlockedNeurons, isCorrect, isCompleted } = answerQuestion(body.id, body.answerIndex);
 
     if (!updatedNeuron) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Neuron not found or cannot be updated'
+          error: 'Neuron not found or cannot be updated',
+          isCorrect: false,
+          isCompleted: false
         },
         { status: 404 }
       );
@@ -54,9 +66,13 @@ export async function POST(request: NextRequest) {
       success: true,
       neuron: updatedNeuron,
       unlockedNeurons: unlockedNeurons.map(n => n.id),
-      message: unlockedNeurons.length > 0
-        ? `Unlocked ${unlockedNeurons.length} new neuron(s)!`
-        : 'Progress updated'
+      isCorrect,
+      isCompleted,
+      message: isCompleted
+        ? `Felicidades! Has dominado ${updatedNeuron.label}!`
+        : isCorrect
+        ? 'Respuesta correcta!'
+        : 'Respuesta incorrecta, intenta de nuevo'
     };
 
     return NextResponse.json(response);
@@ -67,7 +83,9 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: 'Failed to update neuron',
-        details: errorMessage
+        details: errorMessage,
+        isCorrect: false,
+        isCompleted: false
       },
       { status: 500 }
     );
