@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import { Suspense } from 'react';
+import * as THREE from 'three';
 import { Neuron } from '@/domain/neuron.types';
 import { CANVAS_SIZE, CAMERA_CONSTANTS, COLORS, PHYSICS_CONSTANTS } from '@/shared/constants/network.constants';
 import NeuronScene from './NeuronScene';
@@ -32,15 +33,17 @@ export default function ThreeCanvas({ neurons, onNeuronClick }: ThreeCanvasProps
         gl={{
           antialias: true,
           alpha: false,
-          powerPreference: 'high-performance'
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.2
         }}
         dpr={[1, 2]}
       >
         <color attach="background" args={[COLORS.BACKGROUND]} />
 
-        <ambientLight intensity={0.3} />
-        <pointLight position={[10, 10, 10]} intensity={0.5} />
-        <pointLight position={[-10, -10, 10]} intensity={0.3} />
+        <ambientLight intensity={0.4} />
+        <directionalLight position={[10, 10, 5]} intensity={0.5} />
+        <pointLight position={[-10, -10, 10]} intensity={0.3} color="#4080ff" distance={25} decay={2} />
 
         <Suspense fallback={null}>
           <Physics

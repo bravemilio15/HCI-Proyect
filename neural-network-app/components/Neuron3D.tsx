@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Mesh, Vector3 } from 'three';
@@ -12,17 +12,32 @@ import {
   ANIMATION_CONSTANTS
 } from '@/shared/constants/network.constants';
 
+interface LightPulse {
+  id: number;
+  scale: number;
+  opacity: number;
+}
+
 interface Neuron3DProps {
   neuron: Neuron;
   position: [number, number, number];
   onClick: () => void;
+  rigidBodyRef?: React.RefObject<RapierRigidBody>;
 }
 
-export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
+export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: externalRef }: Neuron3DProps) {
   const meshRef = useRef<Mesh>(null);
-  const rigidBodyRef = useRef<RapierRigidBody>(null);
+  const internalRef = useRef<RapierRigidBody>(null);
+  const rigidBodyRef = externalRef || internalRef;
   const pulseRef = useRef(0);
   const flickerRef = useRef(0);
+
+  const [lightPulses, setLightPulses] = useState<LightPulse[]>([]);
+  const pulseCounterRef = useRef(0);
+  const lastPulseTimeRef = useRef(0);
+
+  const pulseGeometryRef = useRef<THREE.SphereGeometry | null>(null);
+  const auraGeometryRef = useRef<THREE.SphereGeometry | null>(null);
 
   useEffect(() => {
     console.log(`[NEURON-3D] ${neuron.id} status changed:`, {
@@ -37,6 +52,8 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
       status: neuron.status,
       progress: neuron.progress
     });
+
+    const progressRatio = neuron.progress / 100;
 
     switch (neuron.status) {
       case 'blocked':
@@ -56,10 +73,16 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
           showFlicker: false
         };
       case 'in_progress':
+        const baseIntensity = COLORS.IN_PROGRESS.pulseIntensity;
+        const progressBoost = progressRatio * 6.0;
+        const totalIntensity = baseIntensity + progressBoost;
+
+        const progressColor = `rgb(${Math.floor(80 + progressRatio * 175)}, ${Math.floor(80 + progressRatio * 175)}, ${Math.floor(80 + progressRatio * 175)})`;
+
         return {
-          mainColor: COLORS.IN_PROGRESS.main,
+          mainColor: progressColor,
           emissiveColor: COLORS.IN_PROGRESS.emissive,
-          emissiveIntensity: COLORS.IN_PROGRESS.pulseIntensity,
+          emissiveIntensity: totalIntensity,
           showPulse: true,
           showFlicker: false
         };
@@ -67,9 +90,9 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
         return {
           mainColor: COLORS.DOMINATED.main,
           emissiveColor: COLORS.DOMINATED.emissive,
-          emissiveIntensity: COLORS.DOMINATED.intensity,
-          showPulse: false,
-          showFlicker: true
+          emissiveIntensity: 6.8,
+          showPulse: true,
+          showFlicker: false
         };
       default:
         return {
@@ -85,36 +108,53 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
   useFrame((state, delta) => {
     if (!meshRef.current) return;
 
+    const currentTime = state.clock.getElapsedTime();
+
     if (showPulse) {
       pulseRef.current += delta * ANIMATION_CONSTANTS.PULSE_FREQUENCY;
       const pulseWave = Math.sin(pulseRef.current);
-      const pulseScale = 1 + pulseWave * 0.25;
-      meshRef.current.scale.setScalar(pulseScale);
 
       const pulseMaterial = meshRef.current.material as any;
       if (pulseMaterial.emissiveIntensity !== undefined) {
         const intensityMultiplier = 0.3 + (pulseWave * 0.5 + 0.5) * 0.7;
         pulseMaterial.emissiveIntensity = emissiveIntensity * intensityMultiplier * 2;
       }
-    } else if (showFlicker) {
-      flickerRef.current += delta * ANIMATION_CONSTANTS.FLICKER_SPEED;
-      const flickerValue = Math.sin(flickerRef.current) * 0.5 + 0.5;
-      const flickerIntensity =
-        ANIMATION_CONSTANTS.FLICKER_INTENSITY_MIN +
-        (ANIMATION_CONSTANTS.FLICKER_INTENSITY_MAX - ANIMATION_CONSTANTS.FLICKER_INTENSITY_MIN) * flickerValue;
 
-      const flickerMaterial = meshRef.current.material as any;
-      if (flickerMaterial.emissiveIntensity !== undefined) {
-        flickerMaterial.emissiveIntensity = flickerIntensity * 1.5;
+      const progressRatio = neuron.progress / 100;
+      const pulseInterval = neuron.status === 'in_progress'
+        ? Math.max(0.15, 0.8 - progressRatio * 0.65)
+        : neuron.status === 'dominated'
+        ? 0.4
+        : 1.5;
+
+      const maxPulses = neuron.status === 'dominated' ? 4 : 3;
+      if (currentTime - lastPulseTimeRef.current > pulseInterval && lightPulses.length < maxPulses) {
+        setLightPulses((prev) => [
+          ...prev,
+          {
+            id: pulseCounterRef.current++,
+            scale: 0.1,
+            opacity: 1.0
+          }
+        ]);
+        lastPulseTimeRef.current = currentTime;
       }
-      meshRef.current.scale.setScalar(1);
     } else {
-      meshRef.current.scale.setScalar(1);
       const material = meshRef.current.material as any;
       if (material.emissiveIntensity !== undefined) {
         material.emissiveIntensity = emissiveIntensity;
       }
     }
+
+    setLightPulses((prev) =>
+      prev
+        .map((pulse) => ({
+          ...pulse,
+          scale: pulse.scale + delta * ANIMATION_CONSTANTS.PULSE_GROWTH_RATE * 3,
+          opacity: pulse.opacity - delta * ANIMATION_CONSTANTS.SYNAPSE_FADE_SPEED * 3
+        }))
+        .filter((pulse) => pulse.opacity > 0 && pulse.scale < 3.0)
+    );
   });
 
   const isClickable = neuron.status === 'available' || neuron.status === 'in_progress';
@@ -143,20 +183,51 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
             color={mainColor}
             emissive={emissiveColor}
             emissiveIntensity={emissiveIntensity}
-            metalness={0.3}
-            roughness={0.4}
+            metalness={0.2}
+            roughness={0.3}
+            transparent={false}
+            opacity={1.0}
           />
         </mesh>
 
-        {neuron.status === 'in_progress' && progressPercentage > 0 && progressPercentage < 1 && (
-          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-            <ringGeometry args={[NEURON_CONSTANTS.RADIUS * 1.15, NEURON_CONSTANTS.RADIUS * 1.25, 32, 1, 0, Math.PI * 2 * progressPercentage]} />
+        {showPulse && (
+          <mesh>
+            <sphereGeometry args={[NEURON_CONSTANTS.RADIUS * 1.25, 16, 16]} />
             <meshBasicMaterial
-              color={COLORS.IN_PROGRESS.progressColor}
+              color={emissiveColor}
               transparent
-              opacity={0.9}
+              opacity={Math.min(emissiveIntensity * 0.35, 0.8)}
+              depthWrite={false}
             />
           </mesh>
+        )}
+
+        {lightPulses.slice(0, neuron.status === 'dominated' ? 3 : 2).map((pulse) => {
+          const progressRatio = neuron.progress / 100;
+          const isDominated = neuron.status === 'dominated';
+          const pulseOpacity = pulse.opacity * (0.4 + progressRatio * 0.5);
+
+          return (
+            <mesh key={pulse.id}>
+              <sphereGeometry args={[NEURON_CONSTANTS.RADIUS * pulse.scale * (1 + progressRatio * 0.8), 16, 16]} />
+              <meshBasicMaterial
+                color={isDominated ? '#ffffff' : emissiveColor}
+                transparent
+                opacity={Math.min(pulseOpacity, 0.9)}
+                depthWrite={false}
+              />
+            </mesh>
+          );
+        })}
+
+        {(showPulse && emissiveIntensity > 0.5) && (
+          <pointLight
+            position={[0, 0, 0]}
+            intensity={emissiveIntensity * NEURON_CONSTANTS.GLOW_INTENSITY * 2.5}
+            distance={3 + (neuron.progress / 100) * 4}
+            color={neuron.status === 'dominated' ? '#ffffff' : emissiveColor}
+            decay={2}
+          />
         )}
       </RigidBody>
 
@@ -166,6 +237,8 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
         color={COLORS.TEXT}
         anchorX="center"
         anchorY="middle"
+        outlineWidth={0.02}
+        outlineColor="#000000"
       >
         {neuron.label}
       </Text>
@@ -177,6 +250,8 @@ export default function Neuron3D({ neuron, position, onClick }: Neuron3DProps) {
           color={COLORS.IN_PROGRESS.progressColor}
           anchorX="center"
           anchorY="middle"
+          outlineWidth={0.01}
+          outlineColor="#000000"
         >
           {Math.round(neuron.progress)}%
         </Text>
