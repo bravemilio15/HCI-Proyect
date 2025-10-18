@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Mesh, Vector3 } from 'three';
 import * as THREE from 'three';
-import { Text, Sparkles } from '@react-three/drei';
+import { Text, Sparkles, useCursor } from '@react-three/drei';
 import { Neuron } from '@/domain/neuron.types';
 import {
   NEURON_CONSTANTS,
@@ -50,8 +50,20 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
   const particleCounterRef = useRef(0);
   const feedbackStartTimeRef = useRef<number | null>(null);
 
+  const [isHovered, setIsHovered] = useState(false);
+  const [hasAppeared, setHasAppeared] = useState(false);
+  const [birthScale, setBirthScale] = useState(0);
+
   const pulseGeometryRef = useRef<THREE.SphereGeometry | null>(null);
   const auraGeometryRef = useRef<THREE.SphereGeometry | null>(null);
+
+  const isInteractive = neuron.status === 'available' || neuron.status === 'in_progress';
+  useCursor(isHovered && isInteractive);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setHasAppeared(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     console.log(`[NEURON-3D] ${neuron.id} status changed:`, {
@@ -150,6 +162,13 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
 
     const currentTime = state.clock.getElapsedTime();
 
+    if (hasAppeared && birthScale < 1) {
+      const target = 1;
+      const speed = 5;
+      const newScale = birthScale + (target - birthScale) * speed * delta;
+      setBirthScale(newScale > 0.99 ? 1 : newScale);
+    }
+
     if (neuron.status === 'available') {
       const scale = 1 + Math.sin(currentTime * ANIMATION_CONSTANTS.AVAILABLE_PULSE_SPEED) * ANIMATION_CONSTANTS.AVAILABLE_PULSE_AMOUNT;
       meshRef.current.scale.set(scale, scale, scale);
@@ -246,8 +265,18 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
         <mesh
           ref={meshRef}
           onClick={isClickable ? onClick : undefined}
-          onPointerOver={isClickable ? (e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; } : undefined}
-          onPointerOut={isClickable ? () => { document.body.style.cursor = 'default'; } : undefined}
+          onPointerOver={isClickable ? (e) => {
+            e.stopPropagation();
+            setIsHovered(true);
+          } : undefined}
+          onPointerOut={isClickable ? () => {
+            setIsHovered(false);
+          } : undefined}
+          scale={[
+            birthScale * (isHovered && isClickable ? 1.2 : 1),
+            birthScale * (isHovered && isClickable ? 1.2 : 1),
+            birthScale * (isHovered && isClickable ? 1.2 : 1)
+          ]}
         >
           <sphereGeometry args={[NEURON_CONSTANTS.RADIUS, 32, 32]} />
           <meshStandardMaterial
@@ -258,6 +287,7 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
             roughness={0.3}
             transparent={false}
             opacity={1.0}
+            toneMapped={false}
           />
         </mesh>
 

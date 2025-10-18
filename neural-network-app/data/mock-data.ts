@@ -159,6 +159,29 @@ const LOOPS_QUESTIONS: Question[] = [
   }
 ];
 
+const LOCKED_NEURONS: Record<string, Neuron> = {
+  functions: {
+    id: 'functions',
+    label: 'Funciones',
+    position: { x: 150, y: 400 },
+    progress: 0,
+    status: 'available',
+    unlocks: [],
+    questions: FUNCTIONS_QUESTIONS,
+    currentQuestionIndex: 0
+  },
+  loops: {
+    id: 'loops',
+    label: 'Bucles',
+    position: { x: 350, y: 400 },
+    progress: 0,
+    status: 'available',
+    unlocks: [],
+    questions: LOOPS_QUESTIONS,
+    currentQuestionIndex: 0
+  }
+};
+
 export const INITIAL_NETWORK: Neuron[] = [
   {
     id: 'variables',
@@ -168,26 +191,6 @@ export const INITIAL_NETWORK: Neuron[] = [
     status: 'available',
     unlocks: ['functions', 'loops'],
     questions: VARIABLES_QUESTIONS,
-    currentQuestionIndex: 0
-  },
-  {
-    id: 'functions',
-    label: 'Funciones',
-    position: { x: 150, y: 400 },
-    progress: 0,
-    status: 'blocked',
-    unlocks: [],
-    questions: FUNCTIONS_QUESTIONS,
-    currentQuestionIndex: 0
-  },
-  {
-    id: 'loops',
-    label: 'Bucles',
-    position: { x: 350, y: 400 },
-    progress: 0,
-    status: 'blocked',
-    unlocks: [],
-    questions: LOOPS_QUESTIONS,
     currentQuestionIndex: 0
   }
 ];
@@ -256,22 +259,32 @@ export function answerQuestion(neuronId: string, answerIndex: number): {
   if (isCompleted) {
     console.log('[MOCK-DATA] Neuron completed! Unlocking:', neuron.unlocks);
     neuron.unlocks.forEach(unlockedId => {
-      const targetNeuron = networkState.find(n => n.id === unlockedId);
-      console.log('[MOCK-DATA] Checking unlock for:', unlockedId, targetNeuron);
-      if (targetNeuron && targetNeuron.status === 'blocked') {
-        const allPrerequisitesDominated = networkState
-          .filter(n => n.unlocks.includes(unlockedId))
-          .every(prereq => prereq.status === 'dominated');
+      let targetNeuron = networkState.find(n => n.id === unlockedId);
 
-        console.log('[MOCK-DATA] Prerequisites check:', {
-          unlockedId,
-          allPrerequisitesDominated
-        });
+      if (!targetNeuron && LOCKED_NEURONS[unlockedId]) {
+        console.log('[MOCK-DATA] Adding new neuron to network:', unlockedId);
+        const newNeuron = JSON.parse(JSON.stringify(LOCKED_NEURONS[unlockedId]));
+        networkState.push(newNeuron);
+        targetNeuron = newNeuron;
+        unlockedNeurons.push(newNeuron);
+        console.log('[MOCK-DATA] NEW NEURON ADDED:', unlockedId);
+      } else if (targetNeuron) {
+        console.log('[MOCK-DATA] Neuron already exists, checking if blocked:', unlockedId, targetNeuron);
+        if (targetNeuron.status === 'blocked') {
+          const allPrerequisitesDominated = networkState
+            .filter(n => n.unlocks.includes(unlockedId))
+            .every(prereq => prereq.status === 'dominated');
 
-        if (allPrerequisitesDominated) {
-          targetNeuron.status = 'available';
-          unlockedNeurons.push(targetNeuron);
-          console.log('[MOCK-DATA] UNLOCKED:', unlockedId);
+          console.log('[MOCK-DATA] Prerequisites check:', {
+            unlockedId,
+            allPrerequisitesDominated
+          });
+
+          if (allPrerequisitesDominated) {
+            targetNeuron.status = 'available';
+            unlockedNeurons.push(targetNeuron);
+            console.log('[MOCK-DATA] UNLOCKED:', unlockedId);
+          }
         }
       }
     });

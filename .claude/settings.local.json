@@ -12,7 +12,8 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(npm run build)",
-      "Bash(taskkill /F /PID 12880)"
+      "Bash(taskkill /F /PID 12880)",
+      "Bash(timeout 5 sleep 5)"
     ],
     "deny": [],
     "ask": []

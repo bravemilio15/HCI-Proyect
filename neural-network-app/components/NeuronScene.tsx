@@ -6,6 +6,7 @@ import Neuron3D from './Neuron3D';
 import ConnectionLine from './ConnectionLine';
 import { PHYSICS_CONSTANTS } from '@/shared/constants/network.constants';
 import { RapierRigidBody } from '@react-three/rapier';
+import { Stars, Environment } from '@react-three/drei';
 
 interface NeuronSceneProps {
   neurons: Neuron[];
@@ -112,6 +113,18 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
 
   return (
     <group>
+      <Stars
+        radius={100}
+        depth={50}
+        count={5000}
+        factor={4}
+        saturation={0}
+        fade
+        speed={1}
+      />
+
+      <Environment preset="city" />
+
       {neuronPositions.map(neuron => {
         let ref = neuronRefs.current.get(neuron.id);
         if (!ref) {

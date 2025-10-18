@@ -34,13 +34,21 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
     const currentTime = state.clock.getElapsedTime();
 
     if (fromBody.current && toBody.current) {
-      const fromPos = fromBody.current.translation();
-      const toPos = toBody.current.translation();
+      try {
+        const fromPos = fromBody.current.translation();
+        const toPos = toBody.current.translation();
 
-      setPoints([
-        new Vector3(fromPos.x, fromPos.y, fromPos.z),
-        new Vector3(toPos.x, toPos.y, toPos.z)
-      ]);
+        if (fromPos && toPos &&
+            typeof fromPos.x === 'number' &&
+            typeof toPos.x === 'number') {
+          setPoints([
+            new Vector3(fromPos.x, fromPos.y, fromPos.z),
+            new Vector3(toPos.x, toPos.y, toPos.z)
+          ]);
+        }
+      } catch (error) {
+        console.warn('[CONNECTION-LINE] Error updating positions:', error);
+      }
     }
 
     if (active && tubeRef.current) {
@@ -121,28 +129,38 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
           )}
 
           {signals.map((signal) => {
-            const position = curve.getPointAt(signal.progress);
-            const glowIntensity = Math.sin(signal.progress * Math.PI);
+            try {
+              const position = curve.getPointAt(signal.progress);
 
-            return (
-              <group key={signal.id} position={position}>
-                <Sphere args={[0.15, 8, 8]}>
-                  <meshBasicMaterial
+              if (!position || typeof position.x !== 'number') {
+                return null;
+              }
+
+              const glowIntensity = Math.sin(signal.progress * Math.PI);
+
+              return (
+                <group key={signal.id} position={position}>
+                  <Sphere args={[0.15, 8, 8]}>
+                    <meshBasicMaterial
+                      color="#00ffff"
+                      transparent
+                      opacity={glowIntensity * 0.8}
+                    />
+                  </Sphere>
+
+                  <pointLight
+                    position={[0, 0, 0]}
+                    intensity={glowIntensity * 1.5}
+                    distance={1.2}
                     color="#00ffff"
-                    transparent
-                    opacity={glowIntensity * 0.8}
+                    decay={2}
                   />
-                </Sphere>
-
-                <pointLight
-                  position={[0, 0, 0]}
-                  intensity={glowIntensity * 1.5}
-                  distance={1.2}
-                  color="#00ffff"
-                  decay={2}
-                />
-              </group>
-            );
+                </group>
+              );
+            } catch (error) {
+              console.warn('[CONNECTION-LINE] Error rendering signal:', error);
+              return null;
+            }
           })}
         </>
       )}
