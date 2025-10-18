@@ -51,19 +51,13 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
   const feedbackStartTimeRef = useRef<number | null>(null);
 
   const [isHovered, setIsHovered] = useState(false);
-  const [hasAppeared, setHasAppeared] = useState(false);
-  const [birthScale, setBirthScale] = useState(0);
+  const [birthScale, setBirthScale] = useState(1);
 
   const pulseGeometryRef = useRef<THREE.SphereGeometry | null>(null);
   const auraGeometryRef = useRef<THREE.SphereGeometry | null>(null);
 
   const isInteractive = neuron.status === 'available' || neuron.status === 'in_progress';
   useCursor(isHovered && isInteractive);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setHasAppeared(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     console.log(`[NEURON-3D] ${neuron.id} status changed:`, {
@@ -161,13 +155,6 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
     if (!meshRef.current) return;
 
     const currentTime = state.clock.getElapsedTime();
-
-    if (hasAppeared && birthScale < 1) {
-      const target = 1;
-      const speed = 5;
-      const newScale = birthScale + (target - birthScale) * speed * delta;
-      setBirthScale(newScale > 0.99 ? 1 : newScale);
-    }
 
     if (neuron.status === 'available') {
       const scale = 1 + Math.sin(currentTime * ANIMATION_CONSTANTS.AVAILABLE_PULSE_SPEED) * ANIMATION_CONSTANTS.AVAILABLE_PULSE_AMOUNT;

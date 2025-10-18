@@ -95,11 +95,19 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
   const lineColor = active ? COLORS.CONNECTION.active : COLORS.CONNECTION.inactive;
   const opacity = active ? COLORS.CONNECTION.activeOpacity : COLORS.CONNECTION.inactiveOpacity;
 
-  const curve = points.length === 2 ? new CatmullRomCurve3(points) : null;
+  const pointsAreValid = points.length === 2 &&
+    points[0] instanceof Vector3 &&
+    points[1] instanceof Vector3 &&
+    typeof points[0].x === 'number' &&
+    typeof points[1].x === 'number' &&
+    !isNaN(points[0].x) && !isNaN(points[0].y) && !isNaN(points[0].z) &&
+    !isNaN(points[1].x) && !isNaN(points[1].y) && !isNaN(points[1].z);
+
+  const curve = pointsAreValid ? new CatmullRomCurve3(points) : null;
 
   return (
     <group>
-      {curve && (
+      {curve && pointsAreValid && (
         <>
           <Line
             points={points}
