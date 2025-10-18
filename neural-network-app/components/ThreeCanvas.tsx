@@ -3,18 +3,22 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { Suspense } from 'react';
 import * as THREE from 'three';
 import { Neuron } from '@/domain/neuron.types';
-import { CANVAS_SIZE, CAMERA_CONSTANTS, COLORS, PHYSICS_CONSTANTS } from '@/shared/constants/network.constants';
+import { CANVAS_SIZE, CAMERA_CONSTANTS, COLORS, PHYSICS_CONSTANTS, POST_PROCESSING, ORBIT_CONTROLS } from '@/shared/constants/network.constants';
 import NeuronScene from './NeuronScene';
 
 interface ThreeCanvasProps {
   neurons: Neuron[];
   onNeuronClick: (neuronId: string) => void;
+  feedbackNeuronId?: string | null;
+  feedbackType?: 'correct' | 'incorrect' | null;
+  onFeedbackComplete?: () => void;
 }
 
-export default function ThreeCanvas({ neurons, onNeuronClick }: ThreeCanvasProps) {
+export default function ThreeCanvas({ neurons, onNeuronClick, feedbackNeuronId, feedbackType, onFeedbackComplete }: ThreeCanvasProps) {
   return (
     <div
       style={{
@@ -50,14 +54,32 @@ export default function ThreeCanvas({ neurons, onNeuronClick }: ThreeCanvasProps
             gravity={PHYSICS_CONSTANTS.GRAVITY}
             timeStep="vary"
           >
-            <NeuronScene neurons={neurons} onNeuronClick={onNeuronClick} />
+            <NeuronScene
+              neurons={neurons}
+              onNeuronClick={onNeuronClick}
+              feedbackNeuronId={feedbackNeuronId}
+              feedbackType={feedbackType}
+              onFeedbackComplete={onFeedbackComplete}
+            />
           </Physics>
         </Suspense>
 
+        <EffectComposer>
+          <Bloom
+            intensity={POST_PROCESSING.BLOOM_INTENSITY}
+            luminanceThreshold={POST_PROCESSING.BLOOM_LUMINANCE_THRESHOLD}
+            luminanceSmoothing={POST_PROCESSING.BLOOM_LUMINANCE_SMOOTHING}
+          />
+        </EffectComposer>
+
         <OrbitControls
-          enablePan={false}
-          enableZoom={false}
-          enableRotate={false}
+          enablePan={true}
+          enableZoom={true}
+          enableRotate={true}
+          minDistance={ORBIT_CONTROLS.MIN_DISTANCE}
+          maxDistance={ORBIT_CONTROLS.MAX_DISTANCE}
+          maxPolarAngle={ORBIT_CONTROLS.MAX_POLAR_ANGLE}
+          minPolarAngle={ORBIT_CONTROLS.MIN_POLAR_ANGLE}
         />
       </Canvas>
     </div>

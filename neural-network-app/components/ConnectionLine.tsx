@@ -43,11 +43,22 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
       ]);
     }
 
-    if (active) {
+    if (active && tubeRef.current) {
       flowRef.current += delta * ANIMATION_CONSTANTS.CONNECTION_FLOW_SPEED;
       if (flowRef.current > 1) {
         flowRef.current = 0;
       }
+
+      const material = tubeRef.current.material as THREE.MeshPhysicalMaterial;
+      if (material.emissiveIntensity !== undefined) {
+        const pulse = Math.sin(currentTime * 2) * 0.3 + 0.7;
+        material.emissiveIntensity = pulse;
+      }
+    } else if (!active) {
+      flowRef.current = 0;
+    }
+
+    if (active) {
 
       if (currentTime - lastSignalTime.current > 1.2 && signals.length < 2) {
         setSignals((prev) => [

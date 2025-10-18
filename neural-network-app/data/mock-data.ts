@@ -4,72 +4,52 @@ const VARIABLES_QUESTIONS: Question[] = [
   {
     id: 'var-q1',
     question: 'Cual es la forma correcta de declarar una variable en JavaScript moderno?',
-    options: ['let nombre = "Juan"'],
+    options: [
+      'let nombre = "Juan"',
+      'var nombre = "Juan"'
+    ],
     correctAnswer: 0,
     explanation: 'let es la forma moderna y recomendada para declarar variables con scope de bloque'
   },
   {
     id: 'var-q2',
-    question: 'Cual de estas es una variable valida en JavaScript?',
-    options: ['let _variableNombre'],
-    correctAnswer: 0,
-    explanation: 'Las variables pueden comenzar con letra, guion bajo o signo de dolar'
-  },
-  {
-    id: 'var-q3',
     question: 'Que hace la palabra clave const?',
-    options: ['Crea una constante que no puede ser reasignada'],
+    options: [
+      'Crea una constante que no puede ser reasignada',
+      'Crea una variable que puede cambiar libremente'
+    ],
     correctAnswer: 0,
     explanation: 'const declara una constante cuyo valor no puede ser reasignado despues de su inicializacion'
   },
   {
-    id: 'var-q4',
+    id: 'var-q3',
     question: 'Cual es la diferencia principal entre let y var?',
-    options: ['let tiene scope de bloque, var tiene scope de funcion'],
+    options: [
+      'let tiene scope de bloque, var tiene scope de funcion',
+      'let y var son exactamente iguales'
+    ],
     correctAnswer: 0,
     explanation: 'let tiene scope de bloque limitado al bloque donde se declara, var tiene scope de funcion'
   },
   {
-    id: 'var-q5',
+    id: 'var-q4',
     question: 'Puedes declarar una variable sin asignarle un valor?',
-    options: ['Si, tendra el valor undefined'],
+    options: [
+      'Si, tendra el valor undefined',
+      'No, siempre debes asignarle un valor inicial'
+    ],
     correctAnswer: 0,
     explanation: 'Una variable declarada sin valor inicial tiene automaticamente el valor undefined'
   },
   {
-    id: 'var-q6',
-    question: 'Cual de estos nombres de variable sigue la convencion camelCase?',
-    options: ['nombreUsuario'],
-    correctAnswer: 0,
-    explanation: 'camelCase empieza con minuscula y cada palabra siguiente empieza con mayuscula'
-  },
-  {
-    id: 'var-q7',
-    question: 'Que sucede si intentas usar una variable antes de declararla con let?',
-    options: ['Da un error de referencia'],
-    correctAnswer: 0,
-    explanation: 'let no tiene hoisting como var, intentar usarla antes de declararla causa un ReferenceError'
-  },
-  {
-    id: 'var-q8',
+    id: 'var-q5',
     question: 'Puedes cambiar el valor de una variable declarada con let?',
-    options: ['Si, puedes reasignarle cualquier valor'],
+    options: [
+      'Si, puedes reasignarle cualquier valor',
+      'No, let es inmutable como const'
+    ],
     correctAnswer: 0,
     explanation: 'let permite reasignar valores, a diferencia de const que no permite reasignacion'
-  },
-  {
-    id: 'var-q9',
-    question: 'Cual es el alcance scope de una variable declarada con let dentro de un bloque if?',
-    options: ['Solo dentro del bloque if'],
-    correctAnswer: 0,
-    explanation: 'let tiene block scope, solo existe dentro del bloque de llaves donde fue declarada'
-  },
-  {
-    id: 'var-q10',
-    question: 'Que valor tiene una variable const que almacena un objeto?',
-    options: ['La referencia no puede cambiar pero el objeto si puede modificarse'],
-    correctAnswer: 0,
-    explanation: 'const impide reasignar la referencia, pero las propiedades del objeto pueden modificarse'
   }
 ];
 
@@ -77,9 +57,52 @@ const FUNCTIONS_QUESTIONS: Question[] = [
   {
     id: 'func-q1',
     question: 'Como se declara una funcion en JavaScript?',
-    options: ['function miFuncion() {}'],
+    options: [
+      'function miFuncion() {}',
+      'def miFuncion() {}'
+    ],
     correctAnswer: 0,
     explanation: 'Esta es la sintaxis basica para declarar una funcion'
+  },
+  {
+    id: 'func-q2',
+    question: 'Que palabra clave se usa para devolver un valor desde una funcion?',
+    options: [
+      'return',
+      'send'
+    ],
+    correctAnswer: 0,
+    explanation: 'return se usa para devolver un valor y terminar la ejecucion de la funcion'
+  },
+  {
+    id: 'func-q3',
+    question: 'Como se pasan parametros a una funcion?',
+    options: [
+      'Se pasan valores entre parentesis al invocarla',
+      'Se escriben despues del nombre sin parentesis'
+    ],
+    correctAnswer: 0,
+    explanation: 'Los parametros se pasan entre parentesis cuando se invoca la funcion'
+  },
+  {
+    id: 'func-q4',
+    question: 'Cual es la sintaxis de una funcion flecha (arrow function)?',
+    options: [
+      'const miFuncion = () => {}',
+      'arrow miFuncion() {}'
+    ],
+    correctAnswer: 0,
+    explanation: 'Las arrow functions usan la sintaxis () => {} y son mas concisas'
+  },
+  {
+    id: 'func-q5',
+    question: 'Una funcion sin return devuelve que valor?',
+    options: [
+      'undefined',
+      'null'
+    ],
+    correctAnswer: 0,
+    explanation: 'Si una funcion no tiene return explicito, devuelve undefined por defecto'
   }
 ];
 
@@ -87,9 +110,52 @@ const LOOPS_QUESTIONS: Question[] = [
   {
     id: 'loop-q1',
     question: 'Que hace un bucle for?',
-    options: ['Repite codigo un numero determinado de veces'],
+    options: [
+      'Repite codigo un numero determinado de veces',
+      'Ejecuta codigo solo una vez'
+    ],
     correctAnswer: 0,
     explanation: 'El bucle for itera un numero especifico de veces'
+  },
+  {
+    id: 'loop-q2',
+    question: 'Como se detiene un bucle antes de que termine?',
+    options: [
+      'Usando la palabra clave break',
+      'Usando la palabra clave stop'
+    ],
+    correctAnswer: 0,
+    explanation: 'break termina la ejecucion del bucle inmediatamente'
+  },
+  {
+    id: 'loop-q3',
+    question: 'Que hace la palabra clave continue en un bucle?',
+    options: [
+      'Salta a la siguiente iteracion',
+      'Detiene completamente el bucle'
+    ],
+    correctAnswer: 0,
+    explanation: 'continue omite el resto del codigo en la iteracion actual y pasa a la siguiente'
+  },
+  {
+    id: 'loop-q4',
+    question: 'Cual es la diferencia entre while y do-while?',
+    options: [
+      'do-while ejecuta el codigo al menos una vez',
+      'while y do-while son exactamente iguales'
+    ],
+    correctAnswer: 0,
+    explanation: 'do-while evalua la condicion despues de ejecutar el bloque, garantizando al menos una ejecucion'
+  },
+  {
+    id: 'loop-q5',
+    question: 'Como se itera sobre un array con for-of?',
+    options: [
+      'for (let item of array) {}',
+      'for (let item in array) {}'
+    ],
+    correctAnswer: 0,
+    explanation: 'for-of itera directamente sobre los valores de un array o iterable'
   }
 ];
 

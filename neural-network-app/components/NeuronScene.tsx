@@ -10,6 +10,9 @@ import { RapierRigidBody } from '@react-three/rapier';
 interface NeuronSceneProps {
   neurons: Neuron[];
   onNeuronClick: (neuronId: string) => void;
+  feedbackNeuronId?: string | null;
+  feedbackType?: 'correct' | 'incorrect' | null;
+  onFeedbackComplete?: () => void;
 }
 
 interface NeuronWithPosition extends Neuron {
@@ -51,12 +54,12 @@ function generateRandomPosition(existingPositions: { x: number; y: number; z: nu
   return { x: 0, y: 0, z };
 }
 
-export default function NeuronScene({ neurons, onNeuronClick }: NeuronSceneProps) {
+export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, feedbackType, onFeedbackComplete }: NeuronSceneProps) {
   const neuronRefs = useRef<Map<string, React.RefObject<RapierRigidBody>>>(new Map());
   useEffect(() => {
     neurons.forEach(neuron => {
       if (!neuronRefs.current.has(neuron.id)) {
-        neuronRefs.current.set(neuron.id, { current: null });
+        neuronRefs.current.set(neuron.id, { current: null as any });
       }
     });
   }, [neurons]);
@@ -112,9 +115,11 @@ export default function NeuronScene({ neurons, onNeuronClick }: NeuronSceneProps
       {neuronPositions.map(neuron => {
         let ref = neuronRefs.current.get(neuron.id);
         if (!ref) {
-          ref = { current: null };
+          ref = { current: null as any };
           neuronRefs.current.set(neuron.id, ref);
         }
+
+        const isFeedbackNeuron = feedbackNeuronId === neuron.id;
 
         return (
           <Neuron3D
@@ -123,6 +128,8 @@ export default function NeuronScene({ neurons, onNeuronClick }: NeuronSceneProps
             position={[neuron.position3D.x, neuron.position3D.y, neuron.position3D.z]}
             onClick={() => onNeuronClick(neuron.id)}
             rigidBodyRef={ref}
+            feedbackType={isFeedbackNeuron ? feedbackType : null}
+            onFeedbackComplete={isFeedbackNeuron ? onFeedbackComplete : undefined}
           />
         );
       })}

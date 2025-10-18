@@ -18,10 +18,12 @@ export default function QuestionModal({
   isCorrect,
   isAnswering
 }: QuestionModalProps) {
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+
   useEffect(() => {
-    if (isCorrect !== null && isCorrect) {
+    if (isCorrect !== null) {
       const timer = setTimeout(() => {
-        // La siguiente pregunta se cargará automáticamente
+        setSelectedAnswer(null);
       }, 1000);
       return () => clearTimeout(timer);
     }
@@ -37,9 +39,10 @@ export default function QuestionModal({
   const totalQuestions = neuron.questions.length;
   const progressPercentage = (questionNumber / totalQuestions) * 100;
 
-  const handleSubmit = () => {
+  const handleAnswerClick = (answerIndex: number) => {
     if (isAnswering) return;
-    onAnswer(0);
+    setSelectedAnswer(answerIndex);
+    onAnswer(answerIndex);
   };
 
   return (
@@ -77,22 +80,46 @@ export default function QuestionModal({
         </p>
 
         <div className="space-y-4">
-          <button
-            onClick={handleSubmit}
-            disabled={isAnswering}
-            className={`w-full p-6 rounded-xl text-left transition-all duration-300 transform ${
-              isAnswering
-                ? 'bg-gray-700 border-2 border-gray-600 text-gray-400 cursor-wait'
-                : 'bg-gray-700 border-2 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500 hover:scale-102 cursor-pointer'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800 text-white font-bold text-lg">
-                A
-              </span>
-              <span className="flex-1 text-lg">{currentQuestion.options[0]}</span>
-            </div>
-          </button>
+          {currentQuestion.options.map((option, index) => {
+            const isSelected = selectedAnswer === index;
+            const showFeedback = isSelected && isCorrect !== null;
+            const isCorrectAnswer = showFeedback && isCorrect;
+            const isWrongAnswer = showFeedback && !isCorrect;
+
+            let buttonClasses = 'w-full p-6 rounded-xl text-left transition-all duration-300 transform ';
+
+            if (isCorrectAnswer) {
+              buttonClasses += 'bg-green-700 border-2 border-green-500 text-white shadow-lg shadow-green-500/50';
+            } else if (isWrongAnswer) {
+              buttonClasses += 'bg-red-700 border-2 border-red-500 text-white shadow-lg shadow-red-500/50';
+            } else if (isAnswering) {
+              buttonClasses += 'bg-gray-700 border-2 border-gray-600 text-gray-400 cursor-wait';
+            } else {
+              buttonClasses += 'bg-gray-700 border-2 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500 hover:scale-102 cursor-pointer';
+            }
+
+            return (
+              <button
+                key={index}
+                onClick={() => handleAnswerClick(index)}
+                disabled={isAnswering}
+                className={buttonClasses}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800 text-white font-bold text-lg">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="flex-1 text-lg">{option}</span>
+                  {isCorrectAnswer && (
+                    <span className="text-2xl">✓</span>
+                  )}
+                  {isWrongAnswer && (
+                    <span className="text-2xl">✗</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

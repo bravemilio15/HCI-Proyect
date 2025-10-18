@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Neuron } from '@/domain/neuron.types';
+import { UI_ANIMATION } from '@/shared/constants/network.constants';
 import IntroductionModal from './IntroductionModal';
 import QuestionModal from './QuestionModal';
 import CompletionModal from './CompletionModal';
+import ResetButton from './ResetButton';
 
 const ThreeCanvas = dynamic(() => import('./ThreeCanvas'), {
   ssr: false,
@@ -23,6 +26,8 @@ export default function NetworkCanvas() {
   const [isAnswering, setIsAnswering] = useState(false);
   const [answerFeedback, setAnswerFeedback] = useState<boolean | null>(null);
   const [unlockedNeurons, setUnlockedNeurons] = useState<string[]>([]);
+  const [feedbackNeuronId, setFeedbackNeuronId] = useState<string | null>(null);
+  const [feedbackType, setFeedbackType] = useState<'correct' | 'incorrect' | null>(null);
 
   const fetchNetwork = useCallback(async () => {
     try {
@@ -120,9 +125,13 @@ export default function NetworkCanvas() {
       if (data.success) {
         setAnswerFeedback(data.isCorrect);
 
+        setFeedbackNeuronId(selectedNeuron.id);
+        setFeedbackType(data.isCorrect ? 'correct' : 'incorrect');
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         if (data.isCorrect) {
           console.log('[NETWORK-CANVAS] Correct answer! Updating network...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
           await fetchNetwork();
 
           if (data.isCompleted) {
@@ -132,7 +141,7 @@ export default function NetworkCanvas() {
             setShowCompletionModal(true);
           }
         } else {
-          console.log('[NETWORK-CANVAS] Wrong answer');
+          console.log('[NETWORK-CANVAS] Wrong answer - neuron stays at same question');
         }
       } else {
         console.error('Failed to submit answer:', data.error);
@@ -163,6 +172,38 @@ export default function NetworkCanvas() {
     setUnlockedNeurons([]);
   }, []);
 
+  const handleFeedbackComplete = useCallback(() => {
+    setFeedbackNeuronId(null);
+    setFeedbackType(null);
+  }, []);
+
+  const handleReset = useCallback(async () => {
+    try {
+      console.log('[NETWORK-CANVAS] Resetting network...');
+      const response = await fetch('/api/network/reset', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+      console.log('[NETWORK-CANVAS] Reset response:', data);
+
+      if (data.success) {
+        setNeurons(data.data.neurons);
+        setSelectedNeuron(null);
+        setShowIntroModal(false);
+        setShowQuestionPanel(false);
+        setShowCompletionModal(false);
+        setAnswerFeedback(null);
+        setUnlockedNeurons([]);
+        console.log('[NETWORK-CANVAS] Network reset successfully');
+      } else {
+        console.error('[NETWORK-CANVAS] Failed to reset network:', data.error);
+      }
+    } catch (err) {
+      console.error('[NETWORK-CANVAS] Error resetting network:', err);
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-black">
@@ -180,39 +221,60 @@ export default function NetworkCanvas() {
   }
 
   return (
-    <div className="flex h-screen bg-black">
-      {showQuestionPanel ? (
-        <>
-          <div className="w-1/2 flex items-center justify-center p-8">
-            {neurons.length > 0 && (
-              <ThreeCanvas neurons={neurons} onNeuronClick={handleNeuronClick} />
-            )}
+    <div className="relative w-full h-screen bg-black overflow-hidden">
+      <motion.div
+        className="absolute top-0 left-0 h-full flex items-center justify-center"
+        animate={{
+          width: showQuestionPanel ? `${UI_ANIMATION.CANVAS_SPLIT_PERCENTAGE}%` : '100%'
+        }}
+        transition={{
+          duration: UI_ANIMATION.MODAL_TRANSITION_DURATION,
+          ease: UI_ANIMATION.MODAL_TRANSITION_EASE
+        }}
+      >
+        {!showQuestionPanel && (
+          <div className="absolute top-8 left-0 right-0 flex flex-col items-center z-10">
+            <h1 className="text-white text-5xl font-bold mb-4">Red Neuronal de Aprendizaje</h1>
+            <p className="text-gray-400 mb-12 text-xl">
+              Haz clic en la neurona para comenzar a aprender
+            </p>
           </div>
+        )}
 
-          <div className="w-1/2 flex items-center justify-center">
-            {selectedNeuron && (
-              <QuestionModal
-                neuron={selectedNeuron}
-                onAnswer={handleAnswer}
-                onClose={handleCloseQuestionPanel}
-                isCorrect={answerFeedback}
-                isAnswering={isAnswering}
-              />
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="w-full flex flex-col items-center justify-center">
-          <h1 className="text-white text-5xl font-bold mb-4">Red Neuronal de Aprendizaje</h1>
-          <p className="text-gray-400 mb-12 text-xl">
-            Haz clic en la neurona para comenzar a aprender
-          </p>
+        {neurons.length > 0 && (
+          <ThreeCanvas
+            neurons={neurons}
+            onNeuronClick={handleNeuronClick}
+            feedbackNeuronId={feedbackNeuronId}
+            feedbackType={feedbackType}
+            onFeedbackComplete={handleFeedbackComplete}
+          />
+        )}
+      </motion.div>
 
-          {neurons.length > 0 && (
-            <ThreeCanvas neurons={neurons} onNeuronClick={handleNeuronClick} />
-          )}
-        </div>
-      )}
+      <AnimatePresence>
+        {showQuestionPanel && selectedNeuron && (
+          <motion.div
+            className="absolute top-0 right-0 h-full flex items-center justify-center bg-black"
+            style={{ width: `${UI_ANIMATION.CANVAS_SPLIT_PERCENTAGE}%` }}
+            initial={{ x: '100%' }}
+            animate={{ x: '0%' }}
+            exit={{ x: '100%' }}
+            transition={{
+              duration: UI_ANIMATION.MODAL_TRANSITION_DURATION,
+              ease: UI_ANIMATION.MODAL_TRANSITION_EASE
+            }}
+          >
+            <QuestionModal
+              neuron={selectedNeuron}
+              onAnswer={handleAnswer}
+              onClose={handleCloseQuestionPanel}
+              isCorrect={answerFeedback}
+              isAnswering={isAnswering}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {showIntroModal && selectedNeuron && (
         <IntroductionModal
@@ -229,6 +291,8 @@ export default function NetworkCanvas() {
           onClose={handleCloseCompletionModal}
         />
       )}
+
+      <ResetButton onReset={handleReset} />
     </div>
   );
 }

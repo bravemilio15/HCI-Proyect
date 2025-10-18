@@ -4,7 +4,8 @@ import { useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
 import { Mesh, Vector3 } from 'three';
-import { Text } from '@react-three/drei';
+import * as THREE from 'three';
+import { Text, Sparkles } from '@react-three/drei';
 import { Neuron } from '@/domain/neuron.types';
 import {
   NEURON_CONSTANTS,
@@ -18,14 +19,23 @@ interface LightPulse {
   opacity: number;
 }
 
+interface FeedbackParticle {
+  id: number;
+  position: [number, number, number];
+  velocity: [number, number, number];
+  life: number;
+}
+
 interface Neuron3DProps {
   neuron: Neuron;
   position: [number, number, number];
   onClick: () => void;
   rigidBodyRef?: React.RefObject<RapierRigidBody>;
+  feedbackType?: 'correct' | 'incorrect' | null;
+  onFeedbackComplete?: () => void;
 }
 
-export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: externalRef }: Neuron3DProps) {
+export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: externalRef, feedbackType, onFeedbackComplete }: Neuron3DProps) {
   const meshRef = useRef<Mesh>(null);
   const internalRef = useRef<RapierRigidBody>(null);
   const rigidBodyRef = externalRef || internalRef;
@@ -35,6 +45,10 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
   const [lightPulses, setLightPulses] = useState<LightPulse[]>([]);
   const pulseCounterRef = useRef(0);
   const lastPulseTimeRef = useRef(0);
+
+  const [feedbackParticles, setFeedbackParticles] = useState<FeedbackParticle[]>([]);
+  const particleCounterRef = useRef(0);
+  const feedbackStartTimeRef = useRef<number | null>(null);
 
   const pulseGeometryRef = useRef<THREE.SphereGeometry | null>(null);
   const auraGeometryRef = useRef<THREE.SphereGeometry | null>(null);
@@ -46,6 +60,32 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
       position
     });
   }, [neuron.status, neuron.progress, neuron.id]);
+
+  useEffect(() => {
+    if (feedbackType && !feedbackStartTimeRef.current) {
+      feedbackStartTimeRef.current = performance.now();
+
+      const particles: FeedbackParticle[] = [];
+      for (let i = 0; i < ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_COUNT; i++) {
+        const theta = (i / ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_COUNT) * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+        const speed = ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_SPEED;
+
+        particles.push({
+          id: particleCounterRef.current++,
+          position: [0, 0, 0],
+          velocity: [
+            Math.sin(phi) * Math.cos(theta) * speed,
+            Math.sin(phi) * Math.sin(theta) * speed,
+            Math.cos(phi) * speed
+          ],
+          life: 1.0
+        });
+      }
+
+      setFeedbackParticles(particles);
+    }
+  }, [feedbackType]);
 
   const { mainColor, emissiveColor, emissiveIntensity, showPulse, showFlicker } = useMemo(() => {
     console.log(`[NEURON-3D] ${neuron.id} computing colors:`, {
@@ -110,6 +150,13 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
 
     const currentTime = state.clock.getElapsedTime();
 
+    if (neuron.status === 'available') {
+      const scale = 1 + Math.sin(currentTime * ANIMATION_CONSTANTS.AVAILABLE_PULSE_SPEED) * ANIMATION_CONSTANTS.AVAILABLE_PULSE_AMOUNT;
+      meshRef.current.scale.set(scale, scale, scale);
+    } else {
+      meshRef.current.scale.set(1, 1, 1);
+    }
+
     if (showPulse) {
       pulseRef.current += delta * ANIMATION_CONSTANTS.PULSE_FREQUENCY;
       const pulseWave = Math.sin(pulseRef.current);
@@ -155,6 +202,30 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
         }))
         .filter((pulse) => pulse.opacity > 0 && pulse.scale < 3.0)
     );
+
+    if (feedbackType && feedbackStartTimeRef.current) {
+      const elapsed = (performance.now() - feedbackStartTimeRef.current) / 1000;
+
+      if (elapsed >= ANIMATION_CONSTANTS.FEEDBACK_FLASH_DURATION) {
+        setFeedbackParticles([]);
+        feedbackStartTimeRef.current = null;
+        if (onFeedbackComplete) {
+          onFeedbackComplete();
+        }
+      } else {
+        setFeedbackParticles((prev) =>
+          prev.map((particle) => ({
+            ...particle,
+            position: [
+              particle.position[0] + particle.velocity[0] * delta,
+              particle.position[1] + particle.velocity[1] * delta,
+              particle.position[2] + particle.velocity[2] * delta
+            ],
+            life: 1 - (elapsed / ANIMATION_CONSTANTS.FEEDBACK_FLASH_DURATION)
+          }))
+        );
+      }
+    }
   });
 
   const isClickable = neuron.status === 'available' || neuron.status === 'in_progress';
@@ -244,18 +315,71 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
       </Text>
 
       {neuron.status === 'in_progress' && (
-        <Text
-          position={[0, -NEURON_CONSTANTS.LABEL_OFFSET_Y - 0.35, 0]}
-          fontSize={0.2}
-          color={COLORS.IN_PROGRESS.progressColor}
-          anchorX="center"
-          anchorY="middle"
-          outlineWidth={0.01}
-          outlineColor="#000000"
-        >
-          {Math.round(neuron.progress)}%
-        </Text>
+        <>
+          <Text
+            position={[0, -NEURON_CONSTANTS.LABEL_OFFSET_Y - 0.35, 0]}
+            fontSize={0.2}
+            color={COLORS.IN_PROGRESS.progressColor}
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.01}
+            outlineColor="#000000"
+          >
+            {Math.round(neuron.progress)}%
+          </Text>
+
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+            <ringGeometry
+              args={[
+                ANIMATION_CONSTANTS.PROGRESS_RING_INNER_RADIUS,
+                ANIMATION_CONSTANTS.PROGRESS_RING_OUTER_RADIUS,
+                ANIMATION_CONSTANTS.PROGRESS_RING_SEGMENTS,
+                1,
+                0,
+                (neuron.progress / 100) * Math.PI * 2
+              ]}
+            />
+            <meshBasicMaterial
+              color="#00FF88"
+              side={THREE.DoubleSide}
+              transparent
+              opacity={0.6}
+            />
+          </mesh>
+        </>
       )}
+
+      {neuron.status === 'dominated' && (
+        <Sparkles
+          count={ANIMATION_CONSTANTS.SPARKLES_COUNT}
+          scale={ANIMATION_CONSTANTS.SPARKLES_SCALE}
+          size={ANIMATION_CONSTANTS.SPARKLES_SIZE}
+          speed={ANIMATION_CONSTANTS.SPARKLES_SPEED}
+          color="#FFFFFF"
+        />
+      )}
+
+      {feedbackParticles.map((particle) => {
+        const color = feedbackType === 'correct' ? COLORS.FEEDBACK.correct : COLORS.FEEDBACK.incorrect;
+
+        return (
+          <mesh key={particle.id} position={particle.position}>
+            <sphereGeometry args={[ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_SIZE, 8, 8]} />
+            <meshBasicMaterial
+              color={color}
+              transparent
+              opacity={particle.life * 0.9}
+            />
+            <pointLight
+              position={[0, 0, 0]}
+              color={color}
+              intensity={particle.life * 3}
+              distance={1.5}
+              decay={2}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }

@@ -10,7 +10,9 @@
       "Bash(npm uninstall:*)",
       "Bash(dir:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(npm run build)",
+      "Bash(taskkill /F /PID 12880)"
     ],
     "deny": [],
     "ask": []
