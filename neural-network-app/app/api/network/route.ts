@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getNetworkState, answerQuestion } from '@/data/mock-data';
-import { UpdateNeuronRequest, UpdateNeuronResponse } from '@/domain/neuron.types';
+import { UpdateNeuronRequest, UpdateNeuronResponse, Neuron } from '@/domain/neuron.types';
 
 export async function GET() {
   try {
