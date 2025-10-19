@@ -1,0 +1,8 @@
+# Archivos que no se deben incluir en el deploy de Vercel
+README.md
+*.md
+.git
+.gitignore
+node_modules
+.next
+.env.local.example

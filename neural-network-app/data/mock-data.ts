@@ -234,6 +234,10 @@ export function getNetworkState(): Neuron[] {
   return JSON.parse(JSON.stringify(networkState));
 }
 
+export function setNetworkState(newState: Neuron[]): void {
+  networkState = JSON.parse(JSON.stringify(newState));
+}
+
 export function answerQuestion(neuronId: string, answerIndex: number, currentState: Neuron[]): {
   newState: Neuron[];
   unlockedNeurons: Neuron[];
@@ -244,15 +248,27 @@ export function answerQuestion(neuronId: string, answerIndex: number, currentSta
   const neuron = networkCopy.find((n: Neuron) => n.id === neuronId);
 
   if (!neuron) {
-    throw new Error('Neuron not found in provided state');
+    console.error('[ANSWER-QUESTION] Neuron not found:', neuronId);
+    throw new Error(`Neuron not found: ${neuronId}`);
+  }
+
+  if (!neuron.questions || neuron.questions.length === 0) {
+    console.error('[ANSWER-QUESTION] No questions for neuron:', neuronId);
+    throw new Error(`No questions available for neuron: ${neuronId}`);
+  }
+
+  if (neuron.currentQuestionIndex >= neuron.questions.length) {
+    console.error('[ANSWER-QUESTION] Invalid question index:', neuron.currentQuestionIndex, 'total:', neuron.questions.length);
+    throw new Error(`Invalid question index ${neuron.currentQuestionIndex} for neuron ${neuronId}`);
   }
 
   const currentQuestion = neuron.questions[neuron.currentQuestionIndex];
   const isCorrect = currentQuestion.correctAnswer === answerIndex;
 
   if (!isCorrect) {
+    console.log('[ANSWER-QUESTION] Incorrect answer for', neuronId, 'question', neuron.currentQuestionIndex);
     return {
-      newState: currentState, // Return original state on wrong answer
+      newState: networkCopy, // Return copy, not original (importante para evitar referencias)
       unlockedNeurons: [],
       isCorrect: false,
       isCompleted: false,

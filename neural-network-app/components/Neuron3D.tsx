@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useMemo, useEffect, useState } from 'react';
+import { useRef, useMemo, useEffect, useState, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RigidBody, RapierRigidBody } from '@react-three/rapier';
-import { Mesh, Vector3 } from 'three';
+import { Mesh, Vector3, SphereGeometry, RingGeometry } from 'three';
 import * as THREE from 'three';
 import { Text, Sparkles, useCursor } from '@react-three/drei';
 import { Neuron } from '@/domain/neuron.types';
@@ -35,7 +35,19 @@ interface Neuron3DProps {
   onFeedbackComplete?: () => void;
 }
 
-export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: externalRef, feedbackType, onFeedbackComplete }: Neuron3DProps) {
+// ✅ Cachear geometrías para reutilizarlas y reducir garbage collection
+const sphereGeometry = new SphereGeometry(NEURON_CONSTANTS.RADIUS, 32, 32);
+const auraGeometry = new SphereGeometry(NEURON_CONSTANTS.RADIUS * 1.25, 16, 16);
+const ringGeometry = new RingGeometry(
+  ANIMATION_CONSTANTS.PROGRESS_RING_INNER_RADIUS,
+  ANIMATION_CONSTANTS.PROGRESS_RING_OUTER_RADIUS,
+  ANIMATION_CONSTANTS.PROGRESS_RING_SEGMENTS,
+  1,
+  0,
+  Math.PI * 2
+);
+
+const Neuron3D = memo(function Neuron3D({ neuron, position, onClick, rigidBodyRef: externalRef, feedbackType, onFeedbackComplete }: Neuron3DProps) {
   const meshRef = useRef<Mesh>(null);
   const internalRef = useRef<RapierRigidBody>(null);
   const rigidBodyRef = externalRef || internalRef;
@@ -277,7 +289,7 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
             birthScale * (isHovered && isClickable ? 1.2 : 1)
           ]}
         >
-          <sphereGeometry args={[NEURON_CONSTANTS.RADIUS, 32, 32]} />
+          <primitive object={sphereGeometry} attach="geometry" />
           <meshStandardMaterial
             color={mainColor}
             emissive={emissiveColor}
@@ -292,7 +304,7 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
 
         {showPulse && (
           <mesh>
-            <sphereGeometry args={[NEURON_CONSTANTS.RADIUS * 1.25, 16, 16]} />
+            <primitive object={auraGeometry} attach="geometry" />
             <meshBasicMaterial
               color={emissiveColor}
               transparent
@@ -407,4 +419,6 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
       })}
     </group>
   );
-}
+});
+
+export default Neuron3D;

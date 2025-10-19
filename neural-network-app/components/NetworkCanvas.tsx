@@ -31,7 +31,8 @@ export default function NetworkCanvas() {
   const [hint, setHint] = useState<string | null>(null);
   const [isFetchingHint, setIsFetchingHint] = useState(false);
   const [incorrectAnswerIndex, setIncorrectAnswerIndex] = useState<number | null>(null);
-  const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
+  const [lastHintRequestTime, setLastHintRequestTime] = useState(0);
+  const HINT_REQUEST_COOLDOWN = 3000; // ✅ 3 segundos entre hints
 
   const fetchNetwork = useCallback(async () => {
     try {
@@ -73,10 +74,14 @@ export default function NetworkCanvas() {
   }, [fetchNetwork]);
 
   useEffect(() => {
-    // This effect saves the state to localStorage whenever neurons change.
+    // This effect saves the state to localStorage with throttling (max once per second)
     if (neurons.length > 0 && !loading) {
-      console.log('[NETWORK-CANVAS] Saving network state to localStorage.');
-      localStorage.setItem('networkState', JSON.stringify(neurons));
+      const timeoutId = setTimeout(() => {
+        console.log('[NETWORK-CANVAS] Saving network state to localStorage.');
+        localStorage.setItem('networkState', JSON.stringify(neurons));
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
     }
   }, [neurons, loading]);
 
@@ -110,7 +115,6 @@ export default function NetworkCanvas() {
     }
 
     setSelectedNeuron(targetNeuron);
-    setIsPanelCollapsed(false); // Open panel when a neuron is clicked
 
     if (targetNeuron.progress === 0) {
       setShowIntroModal(true);
@@ -139,10 +143,10 @@ export default function NetworkCanvas() {
       const response = await fetch('/api/network', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: selectedNeuron.id, 
-          answerIndex, 
-          currentState: neurons 
+        body: JSON.stringify({
+          id: selectedNeuron.id,
+          answerIndex
+          // ✅ Optimización: Ya no enviamos todo el estado, el servidor lo maneja
         }),
       });
 
@@ -185,6 +189,16 @@ export default function NetworkCanvas() {
   const handleRequestHint = useCallback(async () => {
     if (!selectedNeuron || incorrectAnswerIndex === null) return;
 
+    // ✅ Rate limiting para hints
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastHintRequestTime;
+    if (timeSinceLastRequest < HINT_REQUEST_COOLDOWN) {
+      const waitTime = Math.ceil((HINT_REQUEST_COOLDOWN - timeSinceLastRequest) / 1000);
+      setHint(`Por favor espera ${waitTime} segundo${waitTime > 1 ? 's' : ''} antes de pedir otra pista.`);
+      return;
+    }
+
+    setLastHintRequestTime(now);
     setIsFetchingHint(true);
     setHint(null);
 
@@ -279,19 +293,17 @@ export default function NetworkCanvas() {
   }
 
   const isPanelActive = showIntroModal || showQuestionPanel || showCompletionModal;
-  const isPanelOpen = isPanelActive && !isPanelCollapsed;
+  const isPanelOpen = isPanelActive;
 
   return (
-    <div className="flex w-full h-screen bg-black overflow-hidden">
-      {/* Canvas Container */}
-      <motion.div 
-        className="h-full relative"
-        animate={{ width: isPanelOpen ? '60%' : '100%' }}
-        transition={{ duration: 0.5, ease: 'easeInOut' }}
-      >
-        <div className="absolute top-8 left-0 right-0 flex flex-col items-center z-10 pointer-events-none">
-          <h1 className="text-white text-5xl font-bold mb-4">Red Neuronal de Aprendizaje</h1>
-          <p className="text-gray-400 mb-12 text-xl">
+    <div className="relative w-full h-screen bg-black overflow-hidden flex flex-col md:flex-row">
+      {/* Canvas Container - Mobile: 50% height top, Desktop: 60% width left */}
+      <div className={`relative transition-all duration-500 ease-in-out ${isPanelOpen ? 'h-1/2 md:h-full w-full md:w-[60%]' : 'h-full w-full'}`}>
+        <div className="absolute top-4 md:top-8 left-0 right-0 flex flex-col items-center z-10 pointer-events-none px-4">
+          <h1 className="text-white text-xl md:text-4xl lg:text-5xl font-bold mb-1 md:mb-4 text-center">
+            Red Neuronal de Aprendizaje
+          </h1>
+          <p className="text-gray-400 mb-2 md:mb-12 text-xs md:text-lg lg:text-xl text-center">
             Haz clic en una neurona para comenzar a aprender
           </p>
         </div>
@@ -305,24 +317,26 @@ export default function NetworkCanvas() {
           feedbackType={feedbackType}
           onFeedbackComplete={handleFeedbackComplete}
         />
-      </motion.div>
+      </div>
 
-      {/* Panel Container */}
-      <motion.div 
-        className="h-full bg-gray-900 relative overflow-hidden"
-        animate={{ width: isPanelOpen ? '40%' : '0%' }}
-        transition={{ duration: 0.5, ease: 'easeInOut' }}
-      >
-        {/* Panel Toggle Button */}
-        {isPanelActive && (
-          <button
-            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-            className="absolute top-1/2 left-2 -translate-y-1/2 bg-gray-800 text-white hover:bg-gray-700 transition-colors z-20 px-3 py-2 rounded-lg border border-gray-600 shadow-lg"
-            title={isPanelCollapsed ? 'Abrir panel' : 'Cerrar panel'}
+      {/* Panel Container - Mobile: 50% height bottom, Desktop: 40% width right */}
+      <AnimatePresence>
+        {isPanelOpen && (
+          <motion.div
+            className="relative w-full h-1/2 md:h-full md:w-[40%] bg-gray-900 overflow-hidden"
+            initial={{
+              y: typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 0,
+              x: typeof window !== 'undefined' && window.innerWidth >= 768 ? '100%' : 0,
+              opacity: 0
+            }}
+            animate={{ y: 0, x: 0, opacity: 1 }}
+            exit={{
+              y: typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 0,
+              x: typeof window !== 'undefined' && window.innerWidth >= 768 ? '100%' : 0,
+              opacity: 0
+            }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
           >
-            {isPanelCollapsed ? '◀' : '▶'}
-          </button>
-        )}
 
         <div className="relative w-full h-full">
           <AnimatePresence mode="wait">
@@ -379,6 +393,8 @@ export default function NetworkCanvas() {
           </AnimatePresence>
         </div>
       </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNetworkState, answerQuestion } from '@/data/mock-data';
+import { getNetworkState, answerQuestion, setNetworkState } from '@/data/mock-data';
 import { UpdateNeuronRequest, UpdateNeuronResponse, Neuron } from '@/domain/neuron.types';
 
 export async function GET() {
@@ -26,7 +26,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body: UpdateNeuronRequest & { currentState: Neuron[] } = await request.json();
+    const body: UpdateNeuronRequest = await request.json();
 
     if (!body.id || typeof body.id !== 'string') {
       return NextResponse.json(
@@ -42,14 +42,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!body.currentState || !Array.isArray(body.currentState)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid request: currentState is required' },
-        { status: 400 }
-      );
-    }
+    // ✅ Optimización: El servidor mantiene su propio estado, no necesita recibirlo del cliente
+    const currentState = getNetworkState();
+    const { newState, unlockedNeurons, isCorrect, isCompleted } = answerQuestion(body.id, body.answerIndex, currentState);
 
-    const { newState, unlockedNeurons, isCorrect, isCompleted } = answerQuestion(body.id, body.answerIndex, body.currentState);
+    // ✅ CRÍTICO: Guardar el nuevo estado en el servidor para que persista
+    setNetworkState(newState);
 
     const response = {
       success: true,
@@ -66,13 +64,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
+    console.error('[NETWORK-API] Error processing answer:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
 
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to update neuron',
         details: errorMessage,
+        stack: errorStack,
         isCorrect: false,
         isCompleted: false
       },
