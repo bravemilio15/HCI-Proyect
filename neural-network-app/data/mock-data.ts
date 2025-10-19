@@ -252,6 +252,17 @@ export function answerQuestion(neuronId: string, answerIndex: number, currentSta
     throw new Error(`Neuron not found: ${neuronId}`);
   }
 
+  // Si la neurona ya está dominada, no procesar más respuestas para evitar errores.
+  if (neuron.progress >= 100) {
+    console.log('[ANSWER-QUESTION] Neuron already dominated, skipping:', neuronId);
+    return {
+      newState: networkCopy,
+      unlockedNeurons: [],
+      isCorrect: true, // Se considera "correcto" para no penalizar al usuario
+      isCompleted: true,
+    };
+  }
+
   if (!neuron.questions || neuron.questions.length === 0) {
     console.error('[ANSWER-QUESTION] No questions for neuron:', neuronId);
     throw new Error(`No questions available for neuron: ${neuronId}`);
