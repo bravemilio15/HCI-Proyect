@@ -1,10 +1,6 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getNetworkState,
-  answerQuestion,
-  resetNetwork,
-} from '@/data/mock-data';
+import { answerQuestion } from '@/data/mock-data';
+import { getNetworkState, setNetworkState, resetNetworkState } from '@/lib/state-manager';
 import { UpdateNeuronResponse } from '@/domain/neuron.types';
 
 // Define las acciones que el agente puede realizar
@@ -34,7 +30,7 @@ export async function POST(request: NextRequest) {
     // --- 2. Router de Acciones ---
     switch (body.action) {
       case 'GET_NETWORK_STATUS': {
-        const networkState = getNetworkState();
+        const networkState = await getNetworkState(); // Await
         return NextResponse.json({ success: true, data: { neurons: networkState } });
       }
 
@@ -48,13 +44,17 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const currentState = getNetworkState();
+        const currentState = await getNetworkState(); // Await
         const result = answerQuestion(neuronId, answerIndex, currentState);
+
+        // --- BUG FIX: Persist the new state ---
+        await setNetworkState(result.newState);
 
         const updatedNeuron = result.newState.find(n => n.id === neuronId);
         if (!updatedNeuron) {
+          // This case should ideally not be reached if answerQuestion works correctly
           return NextResponse.json(
-            { success: false, error: 'Neuron not found or cannot be updated' },
+            { success: false, error: 'Neuron not found after update' },
             { status: 404 }
           );
         }
@@ -76,8 +76,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'RESET_NETWORK': {
-        resetNetwork();
-        const networkState = getNetworkState();
+        const networkState = await resetNetworkState(); // Await and use new function
         return NextResponse.json({
           success: true,
           message: 'Red neuronal reiniciada exitosamente',
