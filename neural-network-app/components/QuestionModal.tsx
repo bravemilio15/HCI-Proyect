@@ -9,6 +9,13 @@ interface QuestionModalProps {
   onClose: () => void;
   isCorrect: boolean | null;
   isAnswering: boolean;
+  onBack: () => void;
+  isFirstQuestion: boolean;
+  onRequestHint: () => void;
+  isFetchingHint: boolean;
+  hint: string | null;
+  incorrectAnswerIndex: number | null;
+  onTryAgain: () => void;
 }
 
 export default function QuestionModal({
@@ -16,14 +23,23 @@ export default function QuestionModal({
   onAnswer,
   onClose,
   isCorrect,
-  isAnswering
+  isAnswering,
+  onBack,
+  onRequestHint,
+  isFetchingHint,
+  hint,
+  incorrectAnswerIndex,
+  onTryAgain
 }: QuestionModalProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
 
   useEffect(() => {
+    // Reset local selection when the parent indicates the question is done
     if (isCorrect !== null) {
       const timer = setTimeout(() => {
-        setSelectedAnswer(null);
+        if (isCorrect) {
+          setSelectedAnswer(null);
+        }
       }, 1000);
       return () => clearTimeout(timer);
     }
@@ -40,10 +56,12 @@ export default function QuestionModal({
   const progressPercentage = (questionNumber / totalQuestions) * 100;
 
   const handleAnswerClick = (answerIndex: number) => {
-    if (isAnswering) return;
+    if (isAnswering || isFetchingHint) return;
     setSelectedAnswer(answerIndex);
     onAnswer(answerIndex);
   };
+
+  const showHintButton = isCorrect === false && hint === null && !isFetchingHint;
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 p-8">
@@ -74,7 +92,7 @@ export default function QuestionModal({
         </div>
       </div>
 
-      <div className="mb-8 flex-1">
+      <div className="mb-8 flex-1 overflow-y-auto">
         <p className="text-xl text-gray-200 leading-relaxed mb-8">
           {currentQuestion.question}
         </p>
@@ -82,17 +100,18 @@ export default function QuestionModal({
         <div className="space-y-4">
           {currentQuestion.options.map((option, index) => {
             const isSelected = selectedAnswer === index;
-            const showFeedback = isSelected && isCorrect !== null;
-            const isCorrectAnswer = showFeedback && isCorrect;
-            const isWrongAnswer = showFeedback && !isCorrect;
+            const isIncorrectlyAnswered = incorrectAnswerIndex === index;
+
+            const showAsCorrect = isSelected && isCorrect === true;
+            const showAsIncorrect = (isSelected && isCorrect === false) || (isIncorrectlyAnswered && isCorrect === false);
 
             let buttonClasses = 'w-full p-6 rounded-xl text-left transition-all duration-300 transform ';
 
-            if (isCorrectAnswer) {
+            if (showAsCorrect) {
               buttonClasses += 'bg-green-700 border-2 border-green-500 text-white shadow-lg shadow-green-500/50';
-            } else if (isWrongAnswer) {
+            } else if (showAsIncorrect) {
               buttonClasses += 'bg-red-700 border-2 border-red-500 text-white shadow-lg shadow-red-500/50';
-            } else if (isAnswering) {
+            } else if (isAnswering || isFetchingHint) {
               buttonClasses += 'bg-gray-700 border-2 border-gray-600 text-gray-400 cursor-wait';
             } else {
               buttonClasses += 'bg-gray-700 border-2 border-gray-600 text-gray-200 hover:bg-gray-600 hover:border-gray-500 hover:scale-102 cursor-pointer';
@@ -102,7 +121,7 @@ export default function QuestionModal({
               <button
                 key={index}
                 onClick={() => handleAnswerClick(index)}
-                disabled={isAnswering}
+                disabled={isAnswering || isCorrect !== null || isFetchingHint}
                 className={buttonClasses}
               >
                 <div className="flex items-center gap-4">
@@ -110,22 +129,50 @@ export default function QuestionModal({
                     {String.fromCharCode(65 + index)}
                   </span>
                   <span className="flex-1 text-lg">{option}</span>
-                  {isCorrectAnswer && (
-                    <span className="text-2xl">✓</span>
-                  )}
-                  {isWrongAnswer && (
-                    <span className="text-2xl">✗</span>
-                  )}
+                  {showAsCorrect && <span className="text-2xl">✓</span>}
+                  {showAsIncorrect && <span className="text-2xl">✗</span>}
                 </div>
               </button>
             );
           })}
         </div>
+
+        {isCorrect === false && (
+          <div className="mt-6 text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+            {showHintButton && (
+              <button onClick={onRequestHint} className="text-white font-semibold bg-gray-600 hover:bg-gray-500 px-6 py-3 rounded-lg transition-colors">
+                Respuesta incorrecta. ¿Quieres una pista de Axon?
+              </button>
+            )}
+            {isFetchingHint && (
+              <p className="text-gray-400 animate-pulse">Axon está generando una pista...</p>
+            )}
+            {hint && (
+              <div className="text-left">
+                <p className="text-gray-300 font-semibold mb-2">Pista de Axon:</p>
+                <p className="text-gray-400 italic">{hint}</p>
+                <button onClick={onTryAgain} className="mt-4 text-white font-semibold bg-gray-600 hover:bg-gray-500 px-6 py-2 rounded-lg transition-colors w-full">
+                  Intentar de nuevo
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-700/50">
+        <div>
+          <button
+            onClick={onBack}
+            className="text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isAnswering}
+          >
+            &larr; Volver a la introducción
+          </button>
+        </div>
         <div className="text-gray-500 text-sm">
-          Haz clic en la respuesta para continuar
+          {isCorrect === null && 'Haz clic en la respuesta para continuar'}
+          {hint && 'Ahora, intenta responder de nuevo'}
         </div>
       </div>
 

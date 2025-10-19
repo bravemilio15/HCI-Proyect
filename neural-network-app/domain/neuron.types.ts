@@ -16,6 +16,7 @@ export interface Question {
 export interface Neuron {
   id: string;
   label: string;
+  description: string;
   position: Position;
   progress: number;
   status: NeuronStatus;

@@ -1,6 +1,12 @@
 'use client';
 
+import { useState, FormEvent } from 'react';
 import { Neuron } from '@/domain/neuron.types';
+
+interface ChatMessage {
+  sender: 'user' | 'ai';
+  text: string;
+}
 
 interface IntroductionModalProps {
   neuron: Neuron | null;
@@ -11,87 +17,134 @@ interface IntroductionModalProps {
 export default function IntroductionModal({
   neuron,
   onStart,
-  onClose
+  onClose,
 }: IntroductionModalProps) {
+  const [view, setView] = useState<'introduction' | 'chat'>('introduction');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [userInput, setUserInput] = useState('');
+  const [isAiResponding, setIsAiResponding] = useState(false);
+
   if (!neuron) return null;
 
+  const handleChatSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!userInput.trim() || isAiResponding) return;
+
+    const newHistory: ChatMessage[] = [...chatHistory, { sender: 'user', text: userInput }];
+    setChatHistory(newHistory);
+    setUserInput('');
+    setIsAiResponding(true);
+
+    try {
+      const response = await fetch('/api/chat/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: userInput, topic: neuron.label }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setChatHistory([...newHistory, { sender: 'ai', text: data.answer }]);
+      } else {
+        const errorMessage = data.error || 'No se pudo procesar la pregunta.';
+        setChatHistory([...newHistory, { sender: 'ai', text: `Lo siento, hubo un problema: ${errorMessage}` }]);
+      }
+    } catch (error) {
+      setChatHistory([...newHistory, { sender: 'ai', text: 'Hubo un error de conexión. Inténtalo de nuevo.' }]);
+    } finally {
+      setIsAiResponding(false);
+    }
+  };
+
+  const handleViewChange = (newView: 'introduction' | 'chat') => {
+    setView(newView);
+    if (newView === 'chat' && chatHistory.length === 0) {
+      setIsAiResponding(true);
+      setTimeout(() => {
+        setChatHistory([
+          { sender: 'ai', text: `¡Hola! Soy Axon. Pregúntame lo que quieras sobre ${neuron.label}.` }
+        ]);
+        setIsAiResponding(false);
+      }, 1000);
+    }
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl shadow-2xl max-w-2xl w-full mx-4 p-12 border-2 border-gray-600 animate-scaleIn">
-        <div className="text-center">
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors text-3xl font-bold"
-          >
-            ×
-          </button>
+    <div className="w-full h-full bg-gray-900 flex flex-col p-12 overflow-y-auto relative">
+      <button
+        onClick={onClose}
+        className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors text-3xl font-bold z-10"
+      >
+        ×
+      </button>
 
+      {view === 'introduction' && (
+        <div className="text-center flex flex-col justify-center items-center h-full">
           <div className="mb-8">
-            <h1 className="text-6xl font-bold text-white mb-4">
-              Tema: {neuron.label}
+            <h1 className="text-5xl font-bold text-white mb-4">
+              {neuron.label}
             </h1>
-            <div className="h-1 w-32 bg-gradient-to-r from-transparent via-white to-transparent mx-auto mb-8"></div>
-          </div>
-
-          <div className="mb-10 text-gray-300 text-lg leading-relaxed space-y-4">
-            <p>
-              Bienvenido al módulo de aprendizaje sobre <span className="text-white font-semibold">{neuron.label}</span>.
-            </p>
-            <p>
-              En este tema aprenderás los conceptos fundamentales de cómo funcionan las variables en JavaScript,
-              incluyendo su declaración, asignación y alcance.
-            </p>
-            <p className="text-white font-semibold">
-              Completa {neuron.questions.length} preguntas para dominar este concepto.
+            <p className="text-lg text-gray-300 leading-relaxed max-w-prose">
+              {neuron.description}
             </p>
           </div>
 
-          <div className="flex justify-center gap-4">
-            <button
-              onClick={onClose}
-              className="px-8 py-4 bg-gray-700 text-white text-lg font-semibold rounded-xl hover:bg-gray-600 transition-all duration-300"
-            >
-              Cancelar
-            </button>
+          <div className="flex flex-col items-center gap-6 mt-auto w-full">
             <button
               onClick={onStart}
-              className="px-10 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white text-xl font-bold rounded-xl hover:from-gray-500 hover:to-gray-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-gray-700/50"
+              className="w-full px-10 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white text-xl font-bold rounded-xl hover:from-gray-500 hover:to-gray-600 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-gray-700/50"
             >
-              Comenzar
+              Comenzar Quiz
             </button>
+            <div className="text-center">
+              <button onClick={() => handleViewChange('chat')} className="text-gray-400 hover:text-white transition-colors font-semibold">
+                Consultar a Axon
+              </button>
+              <p className="text-xs text-gray-500 mt-1">Si no sabes algo, pregúntale a la IA antes de empezar</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-
-        .animate-scaleIn {
-          animation: scaleIn 0.4s ease-out;
-        }
-      `}</style>
+      {view === 'chat' && (
+        <div className="flex flex-col h-full">
+          <button onClick={() => handleViewChange('introduction')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4 flex-shrink-0">
+            &larr; Volver a la introducción
+          </button>
+          <div className="text-left flex-grow flex flex-col">
+            <div className="flex-grow bg-gray-900/50 rounded-lg p-4 overflow-y-auto border border-gray-700 mb-4">
+              {chatHistory.map((msg, index) => (
+                <div key={index} className={`mb-2 ${msg.sender === 'user' ? 'text-right' : 'text-left'}`}>
+                  <span className={`inline-block px-3 py-1 rounded-lg ${msg.sender === 'user' ? 'bg-gray-600 text-white' : 'bg-gray-700 text-gray-300'}`}>
+                    {msg.text}
+                  </span>
+                </div>
+              ))}
+              {isAiResponding && (
+                <div className="text-left">
+                  <span className="inline-block px-3 py-1 rounded-lg bg-gray-700 text-gray-400 animate-pulse">
+                    Axon está pensando...
+                  </span>
+                </div>
+              )}
+            </div>
+            <form onSubmit={handleChatSubmit} className="flex gap-2 flex-shrink-0">
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="Pregúntale algo a Axon..."
+                className="flex-grow bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                disabled={isAiResponding}
+              />
+              <button type="submit" className="px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={isAiResponding || !userInput.trim()}>
+                Enviar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

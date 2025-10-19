@@ -71,25 +71,38 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
     if (feedbackType && !feedbackStartTimeRef.current) {
       feedbackStartTimeRef.current = performance.now();
 
-      const particles: FeedbackParticle[] = [];
-      for (let i = 0; i < ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_COUNT; i++) {
-        const theta = (i / ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_COUNT) * Math.PI * 2;
-        const phi = Math.acos((Math.random() * 2) - 1);
-        const speed = ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_SPEED;
+      const newParticles: FeedbackParticle[] = [];
+      const particleCount = feedbackType === 'correct' ? 50 : 30;
+      const speed = feedbackType === 'correct' ? ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_SPEED : ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_SPEED * 0.7;
 
-        particles.push({
-          id: particleCounterRef.current++,
-          position: [0, 0, 0],
-          velocity: [
+      for (let i = 0; i < particleCount; i++) {
+        let vel: [number, number, number];
+        if (feedbackType === 'correct') {
+          // Expansive shockwave
+          const theta = Math.random() * 2 * Math.PI;
+          const phi = Math.acos(2 * Math.random() - 1);
+          vel = [
             Math.sin(phi) * Math.cos(theta) * speed,
             Math.sin(phi) * Math.sin(theta) * speed,
             Math.cos(phi) * speed
-          ],
+          ];
+        } else {
+          // Erratic fizzle
+          vel = [
+            (Math.random() - 0.5) * speed * 2,
+            (Math.random() - 0.5) * speed * 2,
+            (Math.random() - 0.5) * speed * 2
+          ];
+        }
+
+        newParticles.push({
+          id: particleCounterRef.current++,
+          position: [0, 0, 0],
+          velocity: vel,
           life: 1.0
         });
       }
-
-      setFeedbackParticles(particles);
+      setFeedbackParticles(newParticles);
     }
   }, [feedbackType]);
 
@@ -235,7 +248,6 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
   });
 
   const isClickable = neuron.status === 'available' || neuron.status === 'in_progress';
-  const progressPercentage = neuron.progress / 100;
 
   return (
     <group position={position}>
@@ -377,22 +389,18 @@ export default function Neuron3D({ neuron, position, onClick, rigidBodyRef: exte
       )}
 
       {feedbackParticles.map((particle) => {
-        const color = feedbackType === 'correct' ? COLORS.FEEDBACK.correct : COLORS.FEEDBACK.incorrect;
+        const color = feedbackType === 'correct' ? '#88ddff' : COLORS.FEEDBACK.incorrectEmissive;
+        const scale = particle.life * (feedbackType === 'correct' ? 0.4 : 0.25);
 
         return (
-          <mesh key={particle.id} position={particle.position}>
-            <sphereGeometry args={[ANIMATION_CONSTANTS.FEEDBACK_PARTICLE_SIZE, 8, 8]} />
+          <mesh key={particle.id} position={particle.position} scale={[scale, scale, scale]}>
+            <circleGeometry args={[0.5, 16]} />
             <meshBasicMaterial
               color={color}
               transparent
-              opacity={particle.life * 0.9}
-            />
-            <pointLight
-              position={[0, 0, 0]}
-              color={color}
-              intensity={particle.life * 3}
-              distance={1.5}
-              decay={2}
+              opacity={particle.life}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
             />
           </mesh>
         );

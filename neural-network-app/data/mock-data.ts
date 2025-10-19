@@ -163,6 +163,7 @@ const LOCKED_NEURONS: Record<string, Neuron> = {
   functions: {
     id: 'functions',
     label: 'Funciones',
+    description: 'Una función es un bloque de código reutilizable diseñado para realizar una tarea específica. Las funciones ayudan a organizar el código, hacerlo más legible y evitar la repetición. Puedes definirlas de varias maneras, incluyendo declaraciones de función y funciones flecha.',
     position: { x: 150, y: 400 },
     progress: 0,
     status: 'available',
@@ -173,6 +174,7 @@ const LOCKED_NEURONS: Record<string, Neuron> = {
   loops: {
     id: 'loops',
     label: 'Bucles',
+    description: 'Los bucles, o ciclos, se utilizan para repetir una acción varias veces. Son fundamentales para procesar colecciones de datos, como arrays. JavaScript ofrece varios tipos de bucles, como `for`, `while` y `for...of`, cada uno útil en diferentes escenarios.',
     position: { x: 350, y: 400 },
     progress: 0,
     status: 'available',
@@ -186,6 +188,7 @@ export const INITIAL_NETWORK: Neuron[] = [
   {
     id: 'variables',
     label: 'Variables',
+    description: 'En programación, una variable es un contenedor para almacenar valores. En JavaScript, puedes usar `var`, `let` y `const` para declararlas, cada una con sus propias reglas de alcance y reasignación. Dominar las variables es el primer paso para escribir código dinámico.',
     position: { x: 250, y: 250 },
     progress: 0,
     status: 'available',

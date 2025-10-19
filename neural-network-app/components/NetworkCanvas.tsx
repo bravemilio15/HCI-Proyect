@@ -28,31 +28,19 @@ export default function NetworkCanvas() {
   const [unlockedNeurons, setUnlockedNeurons] = useState<string[]>([]);
   const [feedbackNeuronId, setFeedbackNeuronId] = useState<string | null>(null);
   const [feedbackType, setFeedbackType] = useState<'correct' | 'incorrect' | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [isFetchingHint, setIsFetchingHint] = useState(false);
+  const [incorrectAnswerIndex, setIncorrectAnswerIndex] = useState<number | null>(null);
+  const [isPanelCollapsed, setIsPanelCollapsed] = useState(true);
 
   const fetchNetwork = useCallback(async () => {
     try {
-      console.log('[NETWORK-CANVAS] Fetching network state...');
+      console.log('[NETWORK-CANVAS] Fetching network state from server...');
       const response = await fetch('/api/network');
       const data = await response.json();
 
       if (data.success) {
-        console.log('[NETWORK-CANVAS] Network state received:', data.data.neurons.map((n: Neuron) => ({
-          id: n.id,
-          status: n.status,
-          progress: n.progress
-        })));
         setNeurons(data.data.neurons);
-        if (selectedNeuron) {
-          const updated = data.data.neurons.find((n: Neuron) => n.id === selectedNeuron.id);
-          if (updated) {
-            console.log('[NETWORK-CANVAS] Selected neuron updated:', {
-              id: updated.id,
-              status: updated.status,
-              progress: updated.progress
-            });
-            setSelectedNeuron(updated);
-          }
-        }
         setError(null);
       } else {
         setError('Failed to load network');
@@ -63,11 +51,52 @@ export default function NetworkCanvas() {
     } finally {
       setLoading(false);
     }
-  }, [selectedNeuron]);
+  }, []); // Empty dependency array ensures this function instance doesn't change
 
   useEffect(() => {
+    // This effect runs only once on mount
+    const savedState = localStorage.getItem('networkState');
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        if (Array.isArray(parsedState) && parsedState.length > 0) {
+          console.log('[NETWORK-CANVAS] Loaded network state from localStorage.');
+          setNeurons(parsedState);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error('[NETWORK-CANVAS] Failed to parse saved state, fetching from server.', e);
+      }
+    }
     fetchNetwork();
-  }, []);
+  }, [fetchNetwork]);
+
+  useEffect(() => {
+    // This effect saves the state to localStorage whenever neurons change.
+    if (neurons.length > 0 && !loading) {
+      console.log('[NETWORK-CANVAS] Saving network state to localStorage.');
+      localStorage.setItem('networkState', JSON.stringify(neurons));
+    }
+  }, [neurons, loading]);
+
+  useEffect(() => {
+    // This effect syncs the selectedNeuron state with the main neurons array.
+    // This is crucial for updating the question modal after an answer.
+    if (selectedNeuron) {
+      const updatedNeuron = neurons.find(n => n.id === selectedNeuron.id);
+      if (updatedNeuron && JSON.stringify(updatedNeuron) !== JSON.stringify(selectedNeuron)) {
+        setSelectedNeuron(updatedNeuron);
+      }
+    }
+  }, [neurons, selectedNeuron]);
+
+  const resetQuestionState = () => {
+    setAnswerFeedback(null);
+    setHint(null);
+    setIsFetchingHint(false);
+    setIncorrectAnswerIndex(null);
+  };
 
   const handleNeuronClick = useCallback((neuronId: string) => {
     const targetNeuron = neurons.find(n => n.id === neuronId);
@@ -81,6 +110,7 @@ export default function NetworkCanvas() {
     }
 
     setSelectedNeuron(targetNeuron);
+    setIsPanelCollapsed(false); // Open panel when a neuron is clicked
 
     if (targetNeuron.progress === 0) {
       setShowIntroModal(true);
@@ -88,7 +118,7 @@ export default function NetworkCanvas() {
       setShowQuestionPanel(true);
     }
 
-    setAnswerFeedback(null);
+    resetQuestionState();
   }, [neurons]);
 
   const handleStartQuestions = useCallback(() => {
@@ -99,77 +129,103 @@ export default function NetworkCanvas() {
   const handleAnswer = useCallback(async (answerIndex: number) => {
     if (!selectedNeuron || isAnswering) return;
 
-    console.log('[NETWORK-CANVAS] Handling answer:', {
-      neuronId: selectedNeuron.id,
-      answerIndex
-    });
+    // Reset hint/incorrect state from previous attempt
+    setHint(null);
+    setIncorrectAnswerIndex(null);
 
     setIsAnswering(true);
-    setAnswerFeedback(null);
 
     try {
       const response = await fetch('/api/network', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: selectedNeuron.id,
-          answerIndex
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedNeuron.id, answerIndex }),
       });
 
       const data = await response.json();
-      console.log('[NETWORK-CANVAS] Answer response:', data);
+      setAnswerFeedback(data.isCorrect);
 
       if (data.success) {
-        setAnswerFeedback(data.isCorrect);
-
         setFeedbackNeuronId(selectedNeuron.id);
         setFeedbackType(data.isCorrect ? 'correct' : 'incorrect');
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Let user see feedback
 
         if (data.isCorrect) {
-          console.log('[NETWORK-CANVAS] Correct answer! Updating network...');
-          await fetchNetwork();
+          // Correct answer flow
+          await fetchNetwork(); // Fetch next question
+
+          // After fetching new data, reset feedback for the next question
+          setAnswerFeedback(null);
 
           if (data.isCompleted) {
-            console.log('[NETWORK-CANVAS] Neuron completed! Unlocked:', data.unlockedNeurons);
             setUnlockedNeurons(data.unlockedNeurons || []);
             setShowQuestionPanel(false);
             setShowCompletionModal(true);
           }
         } else {
-          console.log('[NETWORK-CANVAS] Wrong answer - neuron stays at same question');
+          // Incorrect answer flow
+          setIncorrectAnswerIndex(answerIndex);
         }
       } else {
-        console.error('Failed to submit answer:', data.error);
         setAnswerFeedback(false);
       }
     } catch (err) {
-      console.error('Error submitting answer:', err);
       setAnswerFeedback(false);
     } finally {
       setIsAnswering(false);
     }
   }, [selectedNeuron, isAnswering, fetchNetwork]);
 
-  const handleCloseIntroModal = useCallback(() => {
+  const handleRequestHint = useCallback(async () => {
+    if (!selectedNeuron || incorrectAnswerIndex === null) return;
+
+    setIsFetchingHint(true);
+    setHint(null);
+
+    const currentQuestion = selectedNeuron.questions[selectedNeuron.currentQuestionIndex];
+    const userAnswer = currentQuestion.options[incorrectAnswerIndex];
+    const correctAnswer = currentQuestion.options[currentQuestion.correctAnswer];
+
+    try {
+      const response = await fetch('/api/chat/hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: currentQuestion.question,
+          userAnswer,
+          correctAnswer,
+          topic: selectedNeuron.label,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setHint(data.hint);
+      } else {
+        setHint('Lo siento, no pude generar una pista en este momento.');
+      }
+    } catch (error) {
+      setHint('Error de conexión al solicitar la pista.');
+    } finally {
+      setIsFetchingHint(false);
+    }
+  }, [selectedNeuron, incorrectAnswerIndex]);
+
+  const handleClosePanel = () => {
     setShowIntroModal(false);
-    setSelectedNeuron(null);
-  }, []);
-
-  const handleCloseQuestionPanel = useCallback(() => {
     setShowQuestionPanel(false);
-    setSelectedNeuron(null);
-    setAnswerFeedback(null);
-  }, []);
-
-  const handleCloseCompletionModal = useCallback(() => {
     setShowCompletionModal(false);
     setSelectedNeuron(null);
-    setUnlockedNeurons([]);
+    resetQuestionState();
+  }
+
+  const handleCloseIntroModal = handleClosePanel;
+  const handleCloseQuestionPanel = handleClosePanel;
+  const handleCloseCompletionModal = handleClosePanel;
+
+  const handleBackToIntro = useCallback(() => {
+    setShowQuestionPanel(false);
+    setShowIntroModal(true);
   }, []);
 
   const handleFeedbackComplete = useCallback(() => {
@@ -179,13 +235,12 @@ export default function NetworkCanvas() {
 
   const handleReset = useCallback(async () => {
     try {
-      console.log('[NETWORK-CANVAS] Resetting network...');
-      const response = await fetch('/api/network/reset', {
-        method: 'POST',
-      });
+      // Clear the localStorage before resetting the state
+      localStorage.removeItem('networkState');
+      console.log('[NETWORK-CANVAS] Cleared network state from localStorage.');
 
+      const response = await fetch('/api/network/reset', { method: 'POST' });
       const data = await response.json();
-      console.log('[NETWORK-CANVAS] Reset response:', data);
 
       if (data.success) {
         setNeurons(data.data.neurons);
@@ -193,9 +248,7 @@ export default function NetworkCanvas() {
         setShowIntroModal(false);
         setShowQuestionPanel(false);
         setShowCompletionModal(false);
-        setAnswerFeedback(null);
-        setUnlockedNeurons([]);
-        console.log('[NETWORK-CANVAS] Network reset successfully');
+        resetQuestionState();
       } else {
         console.error('[NETWORK-CANVAS] Failed to reset network:', data.error);
       }
@@ -220,79 +273,106 @@ export default function NetworkCanvas() {
     );
   }
 
-  return (
-    <div className="relative w-full h-screen bg-black overflow-hidden">
-      <motion.div
-        className="absolute top-0 left-0 h-full flex items-center justify-center"
-        animate={{
-          width: showQuestionPanel ? `${UI_ANIMATION.CANVAS_SPLIT_PERCENTAGE}%` : '100%'
-        }}
-        transition={{
-          duration: UI_ANIMATION.MODAL_TRANSITION_DURATION,
-          ease: UI_ANIMATION.MODAL_TRANSITION_EASE
-        }}
-      >
-        {!showQuestionPanel && (
-          <div className="absolute top-8 left-0 right-0 flex flex-col items-center z-10">
-            <h1 className="text-white text-5xl font-bold mb-4">Red Neuronal de Aprendizaje</h1>
-            <p className="text-gray-400 mb-12 text-xl">
-              Haz clic en la neurona para comenzar a aprender
-            </p>
-          </div>
-        )}
+  const isPanelActive = showIntroModal || showQuestionPanel || showCompletionModal;
+  const isPanelOpen = isPanelActive && !isPanelCollapsed;
 
-        {neurons.length > 0 && (
-          <ThreeCanvas
-            neurons={neurons}
-            onNeuronClick={handleNeuronClick}
-            feedbackNeuronId={feedbackNeuronId}
-            feedbackType={feedbackType}
-            onFeedbackComplete={handleFeedbackComplete}
-          />
-        )}
+  return (
+    <div className="flex w-full h-screen bg-black overflow-hidden">
+      {/* Canvas Container */}
+      <motion.div 
+        className="h-full relative"
+        animate={{ width: isPanelOpen ? '60%' : '100%' }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+      >
+        <div className="absolute top-8 left-0 right-0 flex flex-col items-center z-10 pointer-events-none">
+          <h1 className="text-white text-5xl font-bold mb-4">Red Neuronal de Aprendizaje</h1>
+          <p className="text-gray-400 mb-12 text-xl">
+            Haz clic en una neurona para comenzar a aprender
+          </p>
+        </div>
+        <ResetButton onReset={handleReset} />
+
+        <ThreeCanvas
+          neurons={neurons}
+          onNeuronClick={handleNeuronClick}
+          isPanelOpen={isPanelOpen}
+          feedbackNeuronId={feedbackNeuronId}
+          feedbackType={feedbackType}
+          onFeedbackComplete={handleFeedbackComplete}
+        />
       </motion.div>
 
-      <AnimatePresence>
-        {showQuestionPanel && selectedNeuron && (
-          <motion.div
-            className="absolute top-0 right-0 h-full flex items-center justify-center bg-black"
-            style={{ width: `${UI_ANIMATION.CANVAS_SPLIT_PERCENTAGE}%` }}
-            initial={{ x: '100%' }}
-            animate={{ x: '0%' }}
-            exit={{ x: '100%' }}
-            transition={{
-              duration: UI_ANIMATION.MODAL_TRANSITION_DURATION,
-              ease: UI_ANIMATION.MODAL_TRANSITION_EASE
-            }}
+      {/* Panel Container */}
+      <motion.div 
+        className="h-full bg-gray-900 relative overflow-hidden"
+        animate={{ width: isPanelOpen ? '40%' : '0%' }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+      >
+        {/* Panel Toggle Button */}
+        {isPanelActive && (
+          <button
+            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
+            className="absolute top-1/2 -left-4 -translate-y-1/2 bg-gray-800/80 text-white hover:bg-gray-700 transition-colors z-20 p-2 rounded-full"
+            title={isPanelCollapsed ? 'Abrir panel' : 'Cerrar panel'}
           >
-            <QuestionModal
-              neuron={selectedNeuron}
-              onAnswer={handleAnswer}
-              onClose={handleCloseQuestionPanel}
-              isCorrect={answerFeedback}
-              isAnswering={isAnswering}
-            />
-          </motion.div>
+            {isPanelCollapsed ? '<' : '>'}
+          </button>
         )}
-      </AnimatePresence>
 
-      {showIntroModal && selectedNeuron && (
-        <IntroductionModal
-          neuron={selectedNeuron}
-          onStart={handleStartQuestions}
-          onClose={handleCloseIntroModal}
-        />
-      )}
+        <div className="relative w-full h-full">
+          <AnimatePresence mode="wait">
+            {showIntroModal && selectedNeuron && (
+              <motion.div
+                key="intro"
+                className="absolute inset-0"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              >
+                <IntroductionModal
+                  neuron={selectedNeuron}
+                  onStart={handleStartQuestions}
+                  onClose={handleCloseIntroModal}
+                />
+              </motion.div>
+            )}
 
-      {showCompletionModal && selectedNeuron && (
-        <CompletionModal
-          neuron={selectedNeuron}
-          unlockedNeurons={unlockedNeurons}
-          onClose={handleCloseCompletionModal}
-        />
-      )}
+            {showQuestionPanel && selectedNeuron && (
+              <motion.div
+                key="question"
+                className="absolute inset-0"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              >
+                <QuestionModal
+                  neuron={selectedNeuron}
+                  onAnswer={handleAnswer}
+                  onClose={handleCloseQuestionPanel}
+                  isCorrect={answerFeedback}
+                  isAnswering={isAnswering}
+                  onBack={handleBackToIntro}
+                  onRequestHint={handleRequestHint}
+                  isFetchingHint={isFetchingHint}
+                  hint={hint}
+                  incorrectAnswerIndex={incorrectAnswerIndex}
+                  onTryAgain={resetQuestionState}
+                />
+              </motion.div>
+            )}
 
-      <ResetButton onReset={handleReset} />
+            {showCompletionModal && selectedNeuron && (
+              <motion.div
+                key="completion"
+                className="absolute inset-0"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              >
+                <CompletionModal
+                  neuron={selectedNeuron}
+                  unlockedNeurons={unlockedNeurons}
+                  onClose={handleCloseCompletionModal}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
     </div>
   );
 }
