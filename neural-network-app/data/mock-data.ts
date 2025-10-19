@@ -242,8 +242,8 @@ export function answerQuestion(neuronId: string, answerIndex: number, currentSta
 
   const unlockedNeuronObjects: Neuron[] = [];
   if (isCompleted) {
-    neuron.unlocks.forEach(unlockedId => {
-      let targetNeuron = networkCopy.find(n => n.id === unlockedId);
+    neuron.unlocks.forEach((unlockedId: string) => {
+      let targetNeuron = networkCopy.find((n: Neuron) => n.id === unlockedId);
       if (!targetNeuron && LOCKED_NEURONS[unlockedId]) {
         const newNeuron = JSON.parse(JSON.stringify(LOCKED_NEURONS[unlockedId]));
         networkCopy.push(newNeuron);

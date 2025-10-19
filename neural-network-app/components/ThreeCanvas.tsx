@@ -21,10 +21,10 @@ interface ThreeCanvasProps {
 }
 
 // Helper component to handle all scene animations
-function SceneAnimator({ sceneGroup, controlsRef, isPanelOpen }: { 
-  sceneGroup: React.RefObject<THREE.Group>;
-  controlsRef: React.RefObject<OrbitControlsImpl>;
-  isPanelOpen: boolean 
+function SceneAnimator({ sceneGroup, controlsRef, isPanelOpen }: {
+  sceneGroup: React.RefObject<THREE.Group | null>;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  isPanelOpen: boolean
 }) {
   useFrame(() => {
     if (!sceneGroup.current || !controlsRef.current) return;

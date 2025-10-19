@@ -90,7 +90,7 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
 
   // Create and memoize refs for each neuron to ensure stability
   const neuronRefs = useMemo(() => {
-    const refs = new Map<string, React.RefObject<RapierRigidBody>>();
+    const refs = new Map<string, React.RefObject<RapierRigidBody | null>>();
     allNeuronsWithGhosts.forEach(neuron => {
       refs.set(neuron.id, createRef<RapierRigidBody>());
     });

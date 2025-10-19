@@ -30,7 +30,7 @@ interface Neuron3DProps {
   neuron: Neuron;
   position: [number, number, number];
   onClick: () => void;
-  rigidBodyRef?: React.RefObject<RapierRigidBody>;
+  rigidBodyRef?: React.RefObject<RapierRigidBody | null>;
   feedbackType?: 'correct' | 'incorrect' | null;
   onFeedbackComplete?: () => void;
 }

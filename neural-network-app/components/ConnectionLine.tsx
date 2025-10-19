@@ -9,8 +9,8 @@ import { RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 
 interface ConnectionLineProps {
-  fromBody: React.RefObject<RapierRigidBody>;
-  toBody: React.RefObject<RapierRigidBody>;
+  fromBody: React.RefObject<RapierRigidBody | null>;
+  toBody: React.RefObject<RapierRigidBody | null>;
   active: boolean;
 }
 
