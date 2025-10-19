@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getNetworkState, answerQuestion, setNetworkState } from '@/data/mock-data';
-import { UpdateNeuronRequest, UpdateNeuronResponse, Neuron } from '@/domain/neuron.types';
+import { answerQuestion } from '@/data/mock-data';
+import { getNetworkState, setNetworkState } from '@/lib/state-manager';
+import { UpdateNeuronRequest } from '@/domain/neuron.types';
 
 export async function GET() {
   try {
-    const networkState = getNetworkState();
+    const networkState = await getNetworkState();
 
     return NextResponse.json({
       success: true,
       data: { neurons: networkState }
     });
   } catch (error) {
+    console.error('[NETWORK-API-GET] Error fetching network state:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
     return NextResponse.json(
@@ -42,12 +44,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Optimización: El servidor mantiene su propio estado, no necesita recibirlo del cliente
-    const currentState = getNetworkState();
+    const currentState = await getNetworkState();
     const { newState, unlockedNeurons, isCorrect, isCompleted } = answerQuestion(body.id, body.answerIndex, currentState);
 
-    // ✅ CRÍTICO: Guardar el nuevo estado en el servidor para que persista
-    setNetworkState(newState);
+    // Guardar el nuevo estado en el almacenamiento persistente
+    await setNetworkState(newState);
 
     const response = {
       success: true,
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('[NETWORK-API] Error processing answer:', error);
+    console.error('[NETWORK-API-POST] Error processing answer:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : '';
 

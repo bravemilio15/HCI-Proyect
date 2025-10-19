@@ -228,15 +228,6 @@ export const INITIAL_NETWORK: Neuron[] = [
   }
 ];
 
-let networkState: Neuron[] = JSON.parse(JSON.stringify(INITIAL_NETWORK));
-
-export function getNetworkState(): Neuron[] {
-  return JSON.parse(JSON.stringify(networkState));
-}
-
-export function setNetworkState(newState: Neuron[]): void {
-  networkState = JSON.parse(JSON.stringify(newState));
-}
 
 export function answerQuestion(neuronId: string, answerIndex: number, currentState: Neuron[]): {
   newState: Neuron[];
@@ -317,7 +308,3 @@ export function answerQuestion(neuronId: string, answerIndex: number, currentSta
   };
 }
 
-export function resetNetwork(): void {
-  // This function still resets the global server state, which is fine for a global reset.
-  networkState = JSON.parse(JSON.stringify(INITIAL_NETWORK));
-}
