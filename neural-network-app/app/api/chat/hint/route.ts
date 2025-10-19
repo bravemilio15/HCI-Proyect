@@ -60,7 +60,14 @@ Basado en el error del estudiante, genera una única pregunta o una pista corta 
       top_p: 1,
     });
 
-    const aiHint = completion.choices[0].message.content;
+    const aiHint = completion.choices[0]?.message?.content;
+
+    if (!aiHint) {
+      return NextResponse.json(
+        { success: false, error: 'No response from AI' },
+        { status: 500 }
+      );
+    }
 
     // 6. Devolver la pista al frontend
     return NextResponse.json({ success: true, hint: aiHint });

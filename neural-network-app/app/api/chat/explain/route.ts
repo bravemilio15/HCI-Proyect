@@ -58,7 +58,14 @@ Cuando un usuario pregunte algo fuera de tu ámbito, debes usar una variación d
       top_p: 1,
     });
 
-    const aiResponse = completion.choices[0].message.content;
+    const aiResponse = completion.choices[0]?.message?.content;
+
+    if (!aiResponse) {
+      return NextResponse.json(
+        { success: false, error: 'No response from AI' },
+        { status: 500 }
+      );
+    }
 
     // 6. Devolver la respuesta al frontend
     return NextResponse.json({ success: true, answer: aiResponse });

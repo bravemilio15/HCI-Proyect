@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useEffect, createRef } from 'react';
+import React, { useMemo, useRef, useEffect, createRef } from 'react';
 import { Neuron } from '@/domain/neuron.types';
 import Neuron3D from './Neuron3D';
 import ConnectionLine from './ConnectionLine';
@@ -56,19 +56,51 @@ function generateRandomPosition(existingPositions: { x: number; y: number; z: nu
 }
 
 export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, feedbackType, onFeedbackComplete }: NeuronSceneProps) {
+  const allNeuronsWithGhosts = useMemo(() => {
+    const ghostNeurons = [
+      {
+        id: 'functions',
+        label: 'Funciones',
+        description: '',
+        position: { x: 150, y: 400 },
+        progress: 0,
+        status: 'blocked' as const,
+        unlocks: [],
+        questions: [],
+        currentQuestionIndex: 0
+      },
+      {
+        id: 'loops',
+        label: 'Bucles',
+        description: '',
+        position: { x: 350, y: 400 },
+        progress: 0,
+        status: 'blocked' as const,
+        unlocks: [],
+        questions: [],
+        currentQuestionIndex: 0
+      }
+    ];
+
+    const realNeuronIds = new Set(neurons.map(n => n.id));
+    const ghostsToAdd = ghostNeurons.filter(ghost => !realNeuronIds.has(ghost.id));
+
+    return [...neurons, ...ghostsToAdd];
+  }, [neurons]);
+
   // Create and memoize refs for each neuron to ensure stability
   const neuronRefs = useMemo(() => {
     const refs = new Map<string, React.RefObject<RapierRigidBody>>();
-    neurons.forEach(neuron => {
+    allNeuronsWithGhosts.forEach(neuron => {
       refs.set(neuron.id, createRef<RapierRigidBody>());
     });
     return refs;
-  }, [neurons]);
+  }, [allNeuronsWithGhosts]);
 
   const neuronPositions = useMemo(() => {
     const existingPositions: { x: number; y: number; z: number }[] = [];
 
-    return neurons.map(neuron => {
+    return allNeuronsWithGhosts.map(neuron => {
       let pos3D: { x: number; y: number; z: number };
 
       if (neuron.position.x === 0 && neuron.position.y === 0) {
@@ -84,7 +116,7 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
         position3D: pos3D
       };
     });
-  }, [neurons]);
+  }, [allNeuronsWithGhosts]);
 
   const connections = useMemo(() => {
     const connectionList: Array<{
@@ -93,10 +125,10 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
       active: boolean;
     }> = [];
 
-    neurons.forEach(neuron => {
+    allNeuronsWithGhosts.forEach(neuron => {
       if (neuron.unlocks && neuron.unlocks.length > 0) {
         neuron.unlocks.forEach(unlockedId => {
-          const targetNeuron = neurons.find(n => n.id === unlockedId);
+          const targetNeuron = allNeuronsWithGhosts.find(n => n.id === unlockedId);
           if (targetNeuron) {
             const isActive = neuron.status === 'dominated' &&
                            (targetNeuron.status === 'available' ||
@@ -114,7 +146,7 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
     });
 
     return connectionList;
-  }, [neurons]);
+  }, [allNeuronsWithGhosts]);
 
   return (
     <group>
