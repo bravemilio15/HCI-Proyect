@@ -48,23 +48,25 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const result = answerQuestion(neuronId, answerIndex);
+        const currentState = getNetworkState();
+        const result = answerQuestion(neuronId, answerIndex, currentState);
 
-        if (!result.updatedNeuron) {
+        const updatedNeuron = result.newState.find(n => n.id === neuronId);
+        if (!updatedNeuron) {
           return NextResponse.json(
             { success: false, error: 'Neuron not found or cannot be updated' },
             { status: 404 }
           );
         }
-        
+
         const response: UpdateNeuronResponse = {
             success: true,
-            neuron: result.updatedNeuron,
+            neuron: updatedNeuron,
             unlockedNeurons: result.unlockedNeurons.map(n => n.id),
             isCorrect: result.isCorrect,
             isCompleted: result.isCompleted,
             message: result.isCompleted
-              ? `Felicidades! Has dominado ${result.updatedNeuron.label}!`
+              ? `Felicidades! Has dominado ${updatedNeuron.label}!`
               : result.isCorrect
               ? 'Respuesta correcta!'
               : 'Respuesta incorrecta, intenta de nuevo'
