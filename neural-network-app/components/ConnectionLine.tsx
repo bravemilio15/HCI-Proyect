@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line, Sphere } from '@react-three/drei';
 import { Vector3, CatmullRomCurve3, TubeGeometry } from 'three';
@@ -20,12 +20,8 @@ interface ElectricalSignal {
 }
 
 export default function ConnectionLine({ fromBody, toBody, active }: ConnectionLineProps) {
-  const flowRef = useRef(0);
   const tubeRef = useRef<THREE.Mesh>(null);
-  const [points, setPoints] = useState<Vector3[]>([
-    new Vector3(0, 0, 0),
-    new Vector3(0, 0, 0)
-  ]);
+  const [curve, setCurve] = useState<THREE.QuadraticBezierCurve3 | null>(null);
   const [signals, setSignals] = useState<ElectricalSignal[]>([]);
   const signalCounter = useRef(0);
   const lastSignalTime = useRef(0);
@@ -38,43 +34,35 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
         const fromPos = fromBody.current.translation();
         const toPos = toBody.current.translation();
 
-        if (fromPos && toPos &&
-            typeof fromPos.x === 'number' &&
-            typeof toPos.x === 'number') {
-          setPoints([
-            new Vector3(fromPos.x, fromPos.y, fromPos.z),
-            new Vector3(toPos.x, toPos.y, toPos.z)
-          ]);
+        if (fromPos && toPos && typeof fromPos.x === 'number' && typeof toPos.x === 'number') {
+          const start = new Vector3(fromPos.x, fromPos.y, fromPos.z);
+          const end = new Vector3(toPos.x, toPos.y, toPos.z);
+
+          // Calculate control point for the curve
+          const midpoint = new Vector3().addVectors(start, end).multiplyScalar(0.5);
+          const direction = new Vector3().subVectors(end, start);
+          const length = direction.length();
+          direction.normalize();
+          
+          // Get a perpendicular vector (simple 2D rotation)
+          const perpendicular = new Vector3(-direction.y, direction.x, 0);
+          
+          // Offset the control point proportionally to the line's length
+          const offset = length * 0.2;
+          const controlPoint = new Vector3().addVectors(midpoint, perpendicular.multiplyScalar(offset));
+
+          setCurve(new THREE.QuadraticBezierCurve3(start, controlPoint, end));
         }
       } catch (error) {
         console.warn('[CONNECTION-LINE] Error updating positions:', error);
       }
     }
 
-    if (active && tubeRef.current) {
-      flowRef.current += delta * ANIMATION_CONSTANTS.CONNECTION_FLOW_SPEED;
-      if (flowRef.current > 1) {
-        flowRef.current = 0;
-      }
-
-      const material = tubeRef.current.material as THREE.MeshPhysicalMaterial;
-      if (material.emissiveIntensity !== undefined) {
-        const pulse = Math.sin(currentTime * 2) * 0.3 + 0.7;
-        material.emissiveIntensity = pulse;
-      }
-    } else if (!active) {
-      flowRef.current = 0;
-    }
-
     if (active) {
-
       if (currentTime - lastSignalTime.current > 1.2 && signals.length < 2) {
         setSignals((prev) => [
           ...prev,
-          {
-            id: signalCounter.current++,
-            progress: 0
-          }
+          { id: signalCounter.current++, progress: 0 }
         ]);
         lastSignalTime.current = currentTime;
       }
@@ -95,22 +83,14 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
   const lineColor = active ? COLORS.CONNECTION.active : COLORS.CONNECTION.inactive;
   const opacity = active ? COLORS.CONNECTION.activeOpacity : COLORS.CONNECTION.inactiveOpacity;
 
-  const pointsAreValid = points.length === 2 &&
-    points[0] instanceof Vector3 &&
-    points[1] instanceof Vector3 &&
-    typeof points[0].x === 'number' &&
-    typeof points[1].x === 'number' &&
-    !isNaN(points[0].x) && !isNaN(points[0].y) && !isNaN(points[0].z) &&
-    !isNaN(points[1].x) && !isNaN(points[1].y) && !isNaN(points[1].z);
-
-  const curve = pointsAreValid ? new CatmullRomCurve3(points) : null;
+  const tubePoints = useMemo(() => curve ? curve.getPoints(20) : [], [curve]);
 
   return (
     <group>
-      {curve && pointsAreValid && (
+      {curve && tubePoints.length > 0 && (
         <>
           <Line
-            points={points}
+            points={tubePoints}
             color={lineColor}
             lineWidth={2}
             transparent
@@ -139,10 +119,7 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
           {signals.map((signal) => {
             try {
               const position = curve.getPointAt(signal.progress);
-
-              if (!position || typeof position.x !== 'number') {
-                return null;
-              }
+              if (!position || typeof position.x !== 'number') return null;
 
               const glowIntensity = Math.sin(signal.progress * Math.PI);
 
@@ -155,7 +132,6 @@ export default function ConnectionLine({ fromBody, toBody, active }: ConnectionL
                       opacity={glowIntensity * 0.8}
                     />
                   </Sphere>
-
                   <pointLight
                     position={[0, 0, 0]}
                     intensity={glowIntensity * 1.5}
