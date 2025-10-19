@@ -139,7 +139,11 @@ export default function NetworkCanvas() {
       const response = await fetch('/api/network', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedNeuron.id, answerIndex }),
+        body: JSON.stringify({ 
+          id: selectedNeuron.id, 
+          answerIndex, 
+          currentState: neurons 
+        }),
       });
 
       const data = await response.json();
@@ -149,14 +153,15 @@ export default function NetworkCanvas() {
         setFeedbackNeuronId(selectedNeuron.id);
         setFeedbackType(data.isCorrect ? 'correct' : 'incorrect');
 
+        // The backend now returns the full updated state, so we can set it directly
+        if (data.newState) {
+          setNeurons(data.newState);
+        }
+
         await new Promise(resolve => setTimeout(resolve, 1000)); // Let user see feedback
 
         if (data.isCorrect) {
-          // Correct answer flow
-          await fetchNetwork(); // Fetch next question
-
-          // After fetching new data, reset feedback for the next question
-          setAnswerFeedback(null);
+          setAnswerFeedback(null); // Reset for next question
 
           if (data.isCompleted) {
             setUnlockedNeurons(data.unlockedNeurons || []);

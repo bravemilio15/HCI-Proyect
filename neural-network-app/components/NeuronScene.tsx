@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, createRef } from 'react';
 import { Neuron } from '@/domain/neuron.types';
 import Neuron3D from './Neuron3D';
 import ConnectionLine from './ConnectionLine';
@@ -56,13 +56,13 @@ function generateRandomPosition(existingPositions: { x: number; y: number; z: nu
 }
 
 export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, feedbackType, onFeedbackComplete }: NeuronSceneProps) {
-  const neuronRefs = useRef<Map<string, React.RefObject<RapierRigidBody>>>(new Map());
-  useEffect(() => {
+  // Create and memoize refs for each neuron to ensure stability
+  const neuronRefs = useMemo(() => {
+    const refs = new Map<string, React.RefObject<RapierRigidBody>>();
     neurons.forEach(neuron => {
-      if (!neuronRefs.current.has(neuron.id)) {
-        neuronRefs.current.set(neuron.id, { current: null as any });
-      }
+      refs.set(neuron.id, createRef<RapierRigidBody>());
     });
+    return refs;
   }, [neurons]);
 
   const neuronPositions = useMemo(() => {
@@ -94,14 +94,19 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
     }> = [];
 
     neurons.forEach(neuron => {
-      if (neuron.status === 'dominated') {
+      if (neuron.unlocks && neuron.unlocks.length > 0) {
         neuron.unlocks.forEach(unlockedId => {
           const targetNeuron = neurons.find(n => n.id === unlockedId);
           if (targetNeuron) {
+            const isActive = neuron.status === 'dominated' &&
+                           (targetNeuron.status === 'available' ||
+                            targetNeuron.status === 'in_progress' ||
+                            targetNeuron.status === 'dominated');
+
             connectionList.push({
               fromId: neuron.id,
               toId: unlockedId,
-              active: targetNeuron.status === 'available' || targetNeuron.status === 'in_progress' || targetNeuron.status === 'dominated'
+              active: isActive
             });
           }
         });
@@ -126,10 +131,12 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
       <Environment preset="city" />
 
       {neuronPositions.map(neuron => {
-        let ref = neuronRefs.current.get(neuron.id);
+        const ref = neuronRefs.get(neuron.id);
         if (!ref) {
-          ref = { current: null as any };
-          neuronRefs.current.set(neuron.id, ref);
+          // This should not happen with the useMemo approach, but as a fallback:
+          const newRef = React.createRef<RapierRigidBody>();
+          neuronRefs.set(neuron.id, newRef);
+          return null; // Skip rendering this cycle, will be correct on next
         }
 
         const isFeedbackNeuron = feedbackNeuronId === neuron.id;
@@ -148,8 +155,8 @@ export default function NeuronScene({ neurons, onNeuronClick, feedbackNeuronId, 
       })}
 
       {connections.map((conn, index) => {
-        const fromRef = neuronRefs.current.get(conn.fromId);
-        const toRef = neuronRefs.current.get(conn.toId);
+        const fromRef = neuronRefs.get(conn.fromId);
+        const toRef = neuronRefs.get(conn.toId);
 
         if (!fromRef || !toRef) return null;
 

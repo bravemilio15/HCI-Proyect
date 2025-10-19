@@ -204,36 +204,28 @@ export function getNetworkState(): Neuron[] {
   return JSON.parse(JSON.stringify(networkState));
 }
 
-export function answerQuestion(neuronId: string, answerIndex: number): {
-  updatedNeuron: Neuron | null;
+export function answerQuestion(neuronId: string, answerIndex: number, currentState: Neuron[]): {
+  newState: Neuron[];
   unlockedNeurons: Neuron[];
   isCorrect: boolean;
   isCompleted: boolean;
 } {
-  console.log('[MOCK-DATA] answerQuestion called:', { neuronId, answerIndex });
-  const neuron = networkState.find(n => n.id === neuronId);
+  const networkCopy = JSON.parse(JSON.stringify(currentState));
+  const neuron = networkCopy.find((n: Neuron) => n.id === neuronId);
 
-  if (!neuron || (neuron.status !== 'available' && neuron.status !== 'in_progress')) {
-    console.log('[MOCK-DATA] Neuron not found or not interactive:', neuron);
-    return { updatedNeuron: null, unlockedNeurons: [], isCorrect: false, isCompleted: false };
-  }
-
-  if (neuron.questions.length === 0) {
-    console.log('[MOCK-DATA] No questions available');
-    return { updatedNeuron: null, unlockedNeurons: [], isCorrect: false, isCompleted: false };
+  if (!neuron) {
+    throw new Error('Neuron not found in provided state');
   }
 
   const currentQuestion = neuron.questions[neuron.currentQuestionIndex];
   const isCorrect = currentQuestion.correctAnswer === answerIndex;
-  console.log('[MOCK-DATA] Answer check:', { isCorrect, currentQuestionIndex: neuron.currentQuestionIndex });
 
   if (!isCorrect) {
-    console.log('[MOCK-DATA] Wrong answer');
     return {
-      updatedNeuron: JSON.parse(JSON.stringify(neuron)),
+      newState: currentState, // Return original state on wrong answer
       unlockedNeurons: [],
       isCorrect: false,
-      isCompleted: false
+      isCompleted: false,
     };
   }
 
@@ -241,74 +233,34 @@ export function answerQuestion(neuronId: string, answerIndex: number): {
   const PROGRESS_INCREMENT = 100 / neuron.questions.length;
   neuron.progress = Math.min(neuron.progress + PROGRESS_INCREMENT, 100);
 
-  console.log('[MOCK-DATA] Progress updated:', {
-    progress: neuron.progress,
-    increment: PROGRESS_INCREMENT,
-    currentQuestionIndex: neuron.currentQuestionIndex,
-    totalQuestions: neuron.questions.length
-  });
-
-  if (neuron.progress > 0 && neuron.progress < 100) {
-    neuron.status = 'in_progress';
-    console.log('[MOCK-DATA] Status changed to in_progress');
-  } else if (neuron.progress >= 100) {
+  const isCompleted = neuron.progress >= 100;
+  if (isCompleted) {
     neuron.status = 'dominated';
-    console.log('[MOCK-DATA] Status changed to DOMINATED');
+  } else if (neuron.progress > 0) {
+    neuron.status = 'in_progress';
   }
 
-  const unlockedNeurons: Neuron[] = [];
-  const isCompleted = neuron.status === 'dominated';
-
+  const unlockedNeuronObjects: Neuron[] = [];
   if (isCompleted) {
-    console.log('[MOCK-DATA] Neuron completed! Unlocking:', neuron.unlocks);
     neuron.unlocks.forEach(unlockedId => {
-      let targetNeuron = networkState.find(n => n.id === unlockedId);
-
+      let targetNeuron = networkCopy.find(n => n.id === unlockedId);
       if (!targetNeuron && LOCKED_NEURONS[unlockedId]) {
-        console.log('[MOCK-DATA] Adding new neuron to network:', unlockedId);
         const newNeuron = JSON.parse(JSON.stringify(LOCKED_NEURONS[unlockedId]));
-        networkState.push(newNeuron);
-        targetNeuron = newNeuron;
-        unlockedNeurons.push(newNeuron);
-        console.log('[MOCK-DATA] NEW NEURON ADDED:', unlockedId);
-      } else if (targetNeuron) {
-        console.log('[MOCK-DATA] Neuron already exists, checking if blocked:', unlockedId, targetNeuron);
-        if (targetNeuron.status === 'blocked') {
-          const allPrerequisitesDominated = networkState
-            .filter(n => n.unlocks.includes(unlockedId))
-            .every(prereq => prereq.status === 'dominated');
-
-          console.log('[MOCK-DATA] Prerequisites check:', {
-            unlockedId,
-            allPrerequisitesDominated
-          });
-
-          if (allPrerequisitesDominated) {
-            targetNeuron.status = 'available';
-            unlockedNeurons.push(targetNeuron);
-            console.log('[MOCK-DATA] UNLOCKED:', unlockedId);
-          }
-        }
+        networkCopy.push(newNeuron);
+        unlockedNeuronObjects.push(newNeuron);
       }
     });
   }
 
-  console.log('[MOCK-DATA] Final result:', {
-    progress: neuron.progress,
-    status: neuron.status,
-    isCompleted,
-    unlockedCount: unlockedNeurons.length,
-    unlockedIds: unlockedNeurons.map(n => n.id)
-  });
-
   return {
-    updatedNeuron: JSON.parse(JSON.stringify(neuron)),
-    unlockedNeurons: JSON.parse(JSON.stringify(unlockedNeurons)),
+    newState: networkCopy,
+    unlockedNeurons: unlockedNeuronObjects,
     isCorrect: true,
-    isCompleted
+    isCompleted,
   };
 }
 
 export function resetNetwork(): void {
+  // This function still resets the global server state, which is fine for a global reset.
   networkState = JSON.parse(JSON.stringify(INITIAL_NETWORK));
 }

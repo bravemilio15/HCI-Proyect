@@ -26,50 +26,39 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body: UpdateNeuronRequest = await request.json();
+    const body: UpdateNeuronRequest & { currentState: Neuron[] } = await request.json();
 
     if (!body.id || typeof body.id !== 'string') {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid request: neuron id is required'
-        },
+        { success: false, error: 'Invalid request: neuron id is required' },
         { status: 400 }
       );
     }
 
     if (body.answerIndex === undefined || typeof body.answerIndex !== 'number') {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid request: answerIndex is required'
-        },
+        { success: false, error: 'Invalid request: answerIndex is required' },
         { status: 400 }
       );
     }
 
-    const { updatedNeuron, unlockedNeurons, isCorrect, isCompleted } = answerQuestion(body.id, body.answerIndex);
-
-    if (!updatedNeuron) {
+    if (!body.currentState || !Array.isArray(body.currentState)) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Neuron not found or cannot be updated',
-          isCorrect: false,
-          isCompleted: false
-        },
-        { status: 404 }
+        { success: false, error: 'Invalid request: currentState is required' },
+        { status: 400 }
       );
     }
 
-    const response: UpdateNeuronResponse = {
+    const { newState, unlockedNeurons, isCorrect, isCompleted } = answerQuestion(body.id, body.answerIndex, body.currentState);
+
+    const response = {
       success: true,
-      neuron: updatedNeuron,
-      unlockedNeurons: unlockedNeurons.map(n => n.id),
       isCorrect,
       isCompleted,
+      newState,
+      unlockedNeurons: unlockedNeurons.map(n => n.id),
       message: isCompleted
-        ? `Felicidades! Has dominado ${updatedNeuron.label}!`
+        ? `Felicidades! Has dominado el tema!`
         : isCorrect
         ? 'Respuesta correcta!'
         : 'Respuesta incorrecta, intenta de nuevo'
