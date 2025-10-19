@@ -353,6 +353,7 @@ export default function NetworkCanvas() {
                   isCorrect={answerFeedback}
                   isAnswering={isAnswering}
                   onBack={handleBackToIntro}
+                  isFirstQuestion={selectedNeuron.currentQuestionIndex === 0}
                   onRequestHint={handleRequestHint}
                   isFetchingHint={isFetchingHint}
                   hint={hint}
