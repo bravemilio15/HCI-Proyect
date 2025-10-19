@@ -317,10 +317,10 @@ export default function NetworkCanvas() {
         {isPanelActive && (
           <button
             onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-            className="absolute top-1/2 -left-4 -translate-y-1/2 bg-gray-800/80 text-white hover:bg-gray-700 transition-colors z-20 p-2 rounded-full"
+            className="absolute top-1/2 left-2 -translate-y-1/2 bg-gray-800 text-white hover:bg-gray-700 transition-colors z-20 px-3 py-2 rounded-lg border border-gray-600 shadow-lg"
             title={isPanelCollapsed ? 'Abrir panel' : 'Cerrar panel'}
           >
-            {isPanelCollapsed ? '<' : '>'}
+            {isPanelCollapsed ? '◀' : '▶'}
           </button>
         )}
 
