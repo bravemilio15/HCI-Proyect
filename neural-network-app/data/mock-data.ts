@@ -3,159 +3,189 @@ import { Neuron, Question } from '@/domain/neuron.types';
 const VARIABLES_QUESTIONS: Question[] = [
   {
     id: 'var-q1',
-    question: 'Cual es la forma correcta de declarar una variable en JavaScript moderno?',
+    question: 'Que es una variable en programacion?',
     options: [
-      'let nombre = "Juan"',
-      'var nombre = "Juan"'
+      'Un contenedor para guardar informacion',
+      'Un tipo de bucle',
+      'Una pagina web',
+      'Un comando para borrar datos'
     ],
     correctAnswer: 0,
-    explanation: 'let es la forma moderna y recomendada para declarar variables con scope de bloque'
+    explanation: 'Una variable es como una caja donde guardamos informacion que podemos usar despues en nuestro programa'
   },
   {
     id: 'var-q2',
-    question: 'Que hace la palabra clave const?',
+    question: 'Cual es la forma correcta de crear una variable en JavaScript?',
     options: [
-      'Crea una constante que no puede ser reasignada',
-      'Crea una variable que puede cambiar libremente'
+      'let edad = 25',
+      'variable edad = 25',
+      'crear edad = 25',
+      'edad es 25'
     ],
     correctAnswer: 0,
-    explanation: 'const declara una constante cuyo valor no puede ser reasignado despues de su inicializacion'
+    explanation: 'Usamos "let" seguido del nombre de la variable, el signo =, y el valor que queremos guardar'
   },
   {
     id: 'var-q3',
-    question: 'Cual es la diferencia principal entre let y var?',
+    question: 'Que hace la palabra clave "const"?',
     options: [
-      'let tiene scope de bloque, var tiene scope de funcion',
-      'let y var son exactamente iguales'
+      'Crea una variable que NO puede cambiar su valor',
+      'Crea una variable que SI puede cambiar',
+      'Borra una variable',
+      'Imprime un mensaje en pantalla'
     ],
     correctAnswer: 0,
-    explanation: 'let tiene scope de bloque limitado al bloque donde se declara, var tiene scope de funcion'
+    explanation: 'const se usa cuando queremos un valor que nunca va a cambiar, como una constante matematica'
   },
   {
     id: 'var-q4',
-    question: 'Puedes declarar una variable sin asignarle un valor?',
+    question: 'Si escribo: let nombre = "Ana", cual es el valor de la variable?',
     options: [
-      'Si, tendra el valor undefined',
-      'No, siempre debes asignarle un valor inicial'
+      '"Ana"',
+      'nombre',
+      'let',
+      'No tiene valor'
     ],
     correctAnswer: 0,
-    explanation: 'Una variable declarada sin valor inicial tiene automaticamente el valor undefined'
+    explanation: 'El valor es lo que esta despues del signo =, en este caso es el texto "Ana"'
   },
   {
     id: 'var-q5',
-    question: 'Puedes cambiar el valor de una variable declarada con let?',
+    question: 'Puedo cambiar el valor de una variable creada con "let"?',
     options: [
-      'Si, puedes reasignarle cualquier valor',
-      'No, let es inmutable como const'
+      'Si, puedo asignarle un nuevo valor cuando quiera',
+      'No, nunca se puede cambiar',
+      'Solo si uso la palabra "cambiar"',
+      'Solo la primera vez'
     ],
     correctAnswer: 0,
-    explanation: 'let permite reasignar valores, a diferencia de const que no permite reasignacion'
+    explanation: 'Las variables con "let" se pueden modificar cuantas veces necesitemos, a diferencia de "const"'
   }
 ];
 
 const FUNCTIONS_QUESTIONS: Question[] = [
   {
     id: 'func-q1',
-    question: 'Como se declara una funcion en JavaScript?',
+    question: 'Que es una funcion en programacion?',
     options: [
-      'function miFuncion() {}',
-      'def miFuncion() {}'
+      'Un bloque de codigo que hace una tarea especifica',
+      'Una variable especial',
+      'Un tipo de dato',
+      'Un error en el codigo'
     ],
     correctAnswer: 0,
-    explanation: 'Esta es la sintaxis basica para declarar una funcion'
+    explanation: 'Una funcion es como una receta: tiene instrucciones que podemos usar una y otra vez'
   },
   {
     id: 'func-q2',
-    question: 'Que palabra clave se usa para devolver un valor desde una funcion?',
+    question: 'Como se crea una funcion simple en JavaScript?',
     options: [
-      'return',
-      'send'
+      'function saludar() { }',
+      'crear funcion saludar',
+      'nueva saludar() { }',
+      'def saludar() { }'
     ],
     correctAnswer: 0,
-    explanation: 'return se usa para devolver un valor y terminar la ejecucion de la funcion'
+    explanation: 'Usamos la palabra "function", luego el nombre de la funcion, parentesis (), y llaves { }'
   },
   {
     id: 'func-q3',
-    question: 'Como se pasan parametros a una funcion?',
+    question: 'Para que sirve la palabra "return" en una funcion?',
     options: [
-      'Se pasan valores entre parentesis al invocarla',
-      'Se escriben despues del nombre sin parentesis'
+      'Para devolver un resultado',
+      'Para borrar la funcion',
+      'Para repetir la funcion',
+      'Para crear una variable'
     ],
     correctAnswer: 0,
-    explanation: 'Los parametros se pasan entre parentesis cuando se invoca la funcion'
+    explanation: 'return nos permite que la funcion nos "devuelva" o "entregue" un valor que podemos usar'
   },
   {
     id: 'func-q4',
-    question: 'Cual es la sintaxis de una funcion flecha (arrow function)?',
+    question: 'Como ejecuto (llamo) una funcion llamada "mostrarMensaje"?',
     options: [
-      'const miFuncion = () => {}',
-      'arrow miFuncion() {}'
+      'mostrarMensaje()',
+      'llamar mostrarMensaje',
+      'ejecutar mostrarMensaje',
+      'run mostrarMensaje'
     ],
     correctAnswer: 0,
-    explanation: 'Las arrow functions usan la sintaxis () => {} y son mas concisas'
+    explanation: 'Para ejecutar una funcion, escribimos su nombre seguido de parentesis ()'
   },
   {
     id: 'func-q5',
-    question: 'Una funcion sin return devuelve que valor?',
+    question: 'Que son los parametros de una funcion?',
     options: [
-      'undefined',
-      'null'
+      'Valores que le pasamos a la funcion para que trabaje con ellos',
+      'Errores que corrige la funcion',
+      'Nombres especiales para funciones',
+      'Variables que no se pueden usar'
     ],
     correctAnswer: 0,
-    explanation: 'Si una funcion no tiene return explicito, devuelve undefined por defecto'
+    explanation: 'Los parametros son como ingredientes que le damos a la funcion para que haga su trabajo'
   }
 ];
 
 const LOOPS_QUESTIONS: Question[] = [
   {
     id: 'loop-q1',
-    question: 'Que hace un bucle for?',
+    question: 'Que es un bucle en programacion?',
     options: [
-      'Repite codigo un numero determinado de veces',
-      'Ejecuta codigo solo una vez'
+      'Un codigo que se repite varias veces',
+      'Un tipo de variable',
+      'Una funcion especial',
+      'Un error que se repite'
     ],
     correctAnswer: 0,
-    explanation: 'El bucle for itera un numero especifico de veces'
+    explanation: 'Un bucle es como hacer la misma tarea una y otra vez, automaticamente'
   },
   {
     id: 'loop-q2',
-    question: 'Como se detiene un bucle antes de que termine?',
+    question: 'Que hace un bucle "for"?',
     options: [
-      'Usando la palabra clave break',
-      'Usando la palabra clave stop'
+      'Repite un codigo un numero especifico de veces',
+      'Ejecuta el codigo solo una vez',
+      'Borra variables',
+      'Crea funciones nuevas'
     ],
     correctAnswer: 0,
-    explanation: 'break termina la ejecucion del bucle inmediatamente'
+    explanation: 'El bucle "for" es perfecto cuando sabemos exactamente cuantas veces queremos repetir algo'
   },
   {
     id: 'loop-q3',
-    question: 'Que hace la palabra clave continue en un bucle?',
+    question: 'Cuando usamos un bucle "while"?',
     options: [
-      'Salta a la siguiente iteracion',
-      'Detiene completamente el bucle'
+      'Cuando queremos repetir algo MIENTRAS una condicion sea verdadera',
+      'Solo para imprimir mensajes',
+      'Para crear variables',
+      'Cuando queremos parar el programa'
     ],
     correctAnswer: 0,
-    explanation: 'continue omite el resto del codigo en la iteracion actual y pasa a la siguiente'
+    explanation: 'while sigue repitiendo MIENTRAS (while en ingles) la condicion sea verdadera'
   },
   {
     id: 'loop-q4',
-    question: 'Cual es la diferencia entre while y do-while?',
+    question: 'Que hace la palabra "break" dentro de un bucle?',
     options: [
-      'do-while ejecuta el codigo al menos una vez',
-      'while y do-while son exactamente iguales'
+      'Detiene el bucle inmediatamente',
+      'Hace el bucle mas rapido',
+      'Reinicia el bucle desde cero',
+      'Crea un nuevo bucle'
     ],
     correctAnswer: 0,
-    explanation: 'do-while evalua la condicion despues de ejecutar el bloque, garantizando al menos una ejecucion'
+    explanation: 'break es como decir "ALTO, ya no sigas repitiendo", y sale del bucle'
   },
   {
     id: 'loop-q5',
-    question: 'Como se itera sobre un array con for-of?',
+    question: 'Que hace la palabra "continue" en un bucle?',
     options: [
-      'for (let item of array) {}',
-      'for (let item in array) {}'
+      'Salta a la siguiente repeticion del bucle',
+      'Detiene completamente el bucle',
+      'Borra el bucle',
+      'Duplica el bucle'
     ],
     correctAnswer: 0,
-    explanation: 'for-of itera directamente sobre los valores de un array o iterable'
+    explanation: 'continue es como decir "salta esta repeticion y continua con la siguiente"'
   }
 ];
 
