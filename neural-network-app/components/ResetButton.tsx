@@ -27,7 +27,7 @@ export default function ResetButton({ onReset }: ResetButtonProps) {
     <>
       <motion.button
         onClick={() => setShowConfirm(true)}
-        className="fixed top-2 right-2 md:top-4 md:right-4 z-50 bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 md:px-4 md:py-2 rounded-lg shadow-lg transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
+        className="z-50 bg-red-600 hover:bg-red-700 text-white px-2 py-1.5 md:px-4 md:py-2 rounded-lg shadow-lg transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >

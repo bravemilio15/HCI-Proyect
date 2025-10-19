@@ -9,6 +9,8 @@ import IntroductionModal from './IntroductionModal';
 import QuestionModal from './QuestionModal';
 import CompletionModal from './CompletionModal';
 import ResetButton from './ResetButton';
+import TutorialModal from './TutorialModal'; // Importar TutorialModal
+import HelpButton from './HelpButton'; // Importar HelpButton
 
 const ThreeCanvas = dynamic(() => import('./ThreeCanvas'), {
   ssr: false,
@@ -23,6 +25,7 @@ export default function NetworkCanvas() {
   const [showIntroModal, setShowIntroModal] = useState(false);
   const [showQuestionPanel, setShowQuestionPanel] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showTutorialModal, setShowTutorialModal] = useState(false); // Estado para el tutorial
   const [isAnswering, setIsAnswering] = useState(false);
   const [answerFeedback, setAnswerFeedback] = useState<boolean | null>(null);
   const [unlockedNeurons, setUnlockedNeurons] = useState<string[]>([]);
@@ -55,6 +58,12 @@ export default function NetworkCanvas() {
   }, []); // Empty dependency array ensures this function instance doesn't change
 
   useEffect(() => {
+    // Check for first visit to show tutorial
+    const hasViewedTutorial = localStorage.getItem('hasViewedTutorial');
+    if (!hasViewedTutorial) {
+      setShowTutorialModal(true);
+    }
+
     // This effect runs only once on mount
     const savedState = localStorage.getItem('networkState');
     if (savedState) {
@@ -242,6 +251,11 @@ export default function NetworkCanvas() {
   const handleCloseQuestionPanel = handleClosePanel;
   const handleCloseCompletionModal = handleClosePanel;
 
+  const handleCloseTutorial = () => {
+    setShowTutorialModal(false);
+    localStorage.setItem('hasViewedTutorial', 'true');
+  };
+
   const handleBackToIntro = useCallback(() => {
     setShowQuestionPanel(false);
     setShowIntroModal(true);
@@ -256,6 +270,7 @@ export default function NetworkCanvas() {
     try {
       // Clear the localStorage before resetting the state
       localStorage.removeItem('networkState');
+      localStorage.removeItem('hasViewedTutorial'); // Also clear tutorial flag
       console.log('[NETWORK-CANVAS] Cleared network state from localStorage.');
 
       const response = await fetch('/api/network/reset', { method: 'POST' });
@@ -268,6 +283,7 @@ export default function NetworkCanvas() {
         setShowQuestionPanel(false);
         setShowCompletionModal(false);
         resetQuestionState();
+        setShowTutorialModal(true); // Show tutorial again after reset
       } else {
         console.error('[NETWORK-CANVAS] Failed to reset network:', data.error);
       }
@@ -297,17 +313,30 @@ export default function NetworkCanvas() {
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden flex flex-col md:flex-row">
+      <TutorialModal isOpen={showTutorialModal} onClose={handleCloseTutorial} />
+
       {/* Canvas Container - Mobile: 50% height top, Desktop: 60% width left */}
       <div className={`relative transition-all duration-500 ease-in-out ${isPanelOpen ? 'h-1/2 md:h-full w-full md:w-[60%]' : 'h-full w-full'}`}>
-        <div className="absolute top-4 md:top-8 left-0 right-0 flex flex-col items-center z-10 pointer-events-none px-4">
-          <h1 className="text-white text-xl md:text-4xl lg:text-5xl font-bold mb-1 md:mb-4 text-center">
-            Red Neuronal de Aprendizaje
-          </h1>
-          <p className="text-gray-400 mb-2 md:mb-12 text-xs md:text-lg lg:text-xl text-center">
+        {/* Responsive Header */}
+        <header className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center p-2 md:p-4">
+          <div className="flex-1">
+            <HelpButton onClick={() => setShowTutorialModal(true)} />
+          </div>
+          <div className="flex-1 text-center">
+            <h1 className="text-white text-lg md:text-2xl lg:text-3xl font-bold truncate">
+              Red Neuronal
+            </h1>
+          </div>
+          <div className="flex-1 flex justify-end">
+            <ResetButton onReset={handleReset} />
+          </div>
+        </header>
+
+        <div className="absolute top-12 md:top-16 left-0 right-0 flex flex-col items-center z-10 pointer-events-none px-4">
+          <p className="text-gray-400 mb-2 md:mb-12 text-xs md:text-base text-center">
             Haz clic en una neurona para comenzar a aprender
           </p>
         </div>
-        <ResetButton onReset={handleReset} />
 
         <ThreeCanvas
           neurons={neurons}
