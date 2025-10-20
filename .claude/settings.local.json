@@ -4,7 +4,11 @@
       "Bash(npx tsc --noEmit)",
       "Bash(npm run dev)",
       "Bash(npx next build --dry-run)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(choco install pandoc -y)",
+      "Bash(pandoc --version)",
+      "Bash(npm run md2docx:claude)",
+      "Bash(npm run md2docx:instrucciones)"
     ],
     "deny": [],
     "ask": []

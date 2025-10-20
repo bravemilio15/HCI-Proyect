@@ -91,12 +91,23 @@ Funciones → Parametros → Return / Scope
 
 ## Scripts Disponibles
 
+### Desarrollo
 ```bash
 npm run dev      # Servidor de desarrollo
 npm run build    # Compilar para produccion
 npm run start    # Servidor de produccion
 npm run lint     # Ejecutar linter
 ```
+
+### Conversion de Documentacion (Markdown a Word)
+```bash
+npm run md2docx:readme          # Convierte README.md a README.docx
+npm run md2docx:claude          # Convierte CLAUDE.md a CLAUDE.docx
+npm run md2docx:instrucciones   # Convierte Instrucciones.md a Instrucciones.docx
+npm run md2docx <archivo.md>    # Convierte cualquier archivo .md a output.docx
+```
+
+**Nota**: Los archivos .docx generados se crean en la raiz del proyecto. Requiere Pandoc instalado (`choco install pandoc -y`).
 
 ## Caracteristicas Implementadas
 

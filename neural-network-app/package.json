@@ -7,7 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "md2docx": "pandoc -s -o output.docx",
+    "md2docx:readme": "pandoc ../README.md -s -o ../README.docx",
+    "md2docx:claude": "pandoc ../CLAUDE.md -s -o ../CLAUDE.docx",
+    "md2docx:instrucciones": "pandoc ../Instrucciones.md -s -o ../Instrucciones.docx"
   },
   "keywords": [],
   "author": "",
